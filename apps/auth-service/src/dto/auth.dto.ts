@@ -1,5 +1,18 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsEmail, IsNotEmpty, IsString, MinLength, IsOptional } from 'class-validator';
+import { Transform } from 'class-transformer';
+import {
+  IsEmail,
+  IsNotEmpty,
+  IsString,
+  MinLength,
+  MaxLength,
+  IsOptional,
+  IsEnum,
+  Matches,
+  IsUUID,
+} from 'class-validator';
+
+import { UserType } from '../../../../libs/common/src/enums';
 
 export class LoginRequestDto {
   @ApiProperty({
@@ -136,4 +149,102 @@ export class LogoutResponseDto {
     example: 'Successfully logged out',
   })
   message: string;
+}
+
+export class UserRegistrationRequestDto {
+  @ApiProperty({
+    description: 'User email address',
+    example: 'user@example.com',
+  })
+  @IsEmail()
+  @IsNotEmpty()
+  email: string;
+
+  @ApiProperty({
+    description: 'User password',
+    example: 'SecurePassword123!',
+    minLength: 8,
+  })
+  @IsString()
+  @IsNotEmpty()
+  @MinLength(8, { message: 'Password must be at least 8 characters long' })
+  @Matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/, {
+    message:
+      'Password must contain at least one uppercase letter, one lowercase letter, one number and one special character',
+  })
+  password: string;
+
+  @ApiProperty({
+    description: 'User first name',
+    example: 'John',
+  })
+  @IsString()
+  @IsNotEmpty()
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value) as string)
+  @MaxLength(50, { message: 'First name must not exceed 50 characters' })
+  firstName: string;
+
+  @ApiProperty({
+    description: 'User last name',
+    example: 'Doe',
+  })
+  @IsString()
+  @IsNotEmpty()
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value) as string)
+  @MaxLength(50, { message: 'Last name must not exceed 50 characters' })
+  lastName: string;
+
+  @ApiProperty({
+    description: 'User type',
+    example: 'system_admin',
+    enum: UserType,
+    required: false,
+  })
+  @IsEnum(UserType)
+  @IsOptional()
+  userType?: UserType;
+
+  @ApiProperty({
+    description: 'Tenant ID for non-system admin users',
+    example: 'tenant-uuid-123',
+    required: false,
+  })
+  @IsString()
+  @IsOptional()
+  @IsUUID(4, { message: 'Tenant ID must be a valid UUID' })
+  tenantId?: string;
+}
+
+export class UserRegistrationResponseDto {
+  @ApiProperty({
+    description: 'Registration success message',
+    example: 'User registered successfully',
+  })
+  message: string;
+
+  @ApiProperty({
+    description: 'User ID',
+    example: 'user-uuid-123',
+  })
+  userId: string;
+
+  @ApiProperty({
+    description: 'User email',
+    example: 'user@example.com',
+  })
+  email: string;
+
+  @ApiProperty({
+    description: 'User type',
+    example: 'system_admin',
+    enum: UserType,
+  })
+  userType: UserType;
+
+  @ApiProperty({
+    description: 'Tenant ID if applicable',
+    example: 'tenant-uuid-123',
+    required: false,
+  })
+  tenantId?: string;
 }

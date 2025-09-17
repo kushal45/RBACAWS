@@ -2,6 +2,7 @@ import { UnauthorizedException, BadRequestException } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 
 import { AuthServiceService } from './auth-service.service';
+import { UserRepository, AuthCredentialRepository, AuthTokenRepository } from './repositories';
 import { JwtAuthService } from './services/jwt-auth.service';
 
 import type {
@@ -53,8 +54,34 @@ describe('AuthServiceService', () => {
       decodeToken: jest.fn(),
     };
 
+    const mockUserRepository = {
+      findOne: jest.fn(),
+      save: jest.fn(),
+      create: jest.fn(),
+      findBy: jest.fn(),
+    };
+
+    const mockAuthCredentialRepository = {
+      findOne: jest.fn(),
+      save: jest.fn(),
+      create: jest.fn(),
+    };
+
+    const mockAuthTokenRepository = {
+      findOne: jest.fn(),
+      save: jest.fn(),
+      create: jest.fn(),
+      delete: jest.fn(),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
-      providers: [AuthServiceService, { provide: JwtAuthService, useValue: mockJwtAuthService }],
+      providers: [
+        AuthServiceService,
+        { provide: JwtAuthService, useValue: mockJwtAuthService },
+        { provide: UserRepository, useValue: mockUserRepository },
+        { provide: AuthCredentialRepository, useValue: mockAuthCredentialRepository },
+        { provide: AuthTokenRepository, useValue: mockAuthTokenRepository },
+      ],
     }).compile();
 
     service = module.get<AuthServiceService>(AuthServiceService);

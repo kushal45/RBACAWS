@@ -53,4 +53,8 @@ async function bootstrap(): Promise<void> {
   logger.log(`Swagger documentation available at http://localhost:${port}/docs`);
 }
 
-void bootstrap();
+bootstrap().catch(error => {
+  const logger = new Logger('Bootstrap');
+  logger.error('Failed to start API Gateway:', error);
+  process.exit(1);
+});

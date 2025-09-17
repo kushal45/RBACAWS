@@ -16,6 +16,13 @@ export enum UserStatus {
   PENDING_INVITATION = 'pending_invitation',
 }
 
+export enum UserType {
+  SYSTEM_ADMIN = 'system_admin',
+  TENANT_ADMIN = 'tenant_admin',
+  REGULAR_USER = 'regular_user',
+  SERVICE_ACCOUNT = 'service_account',
+}
+
 export enum ResourceType {
   API_ENDPOINT = 'api_endpoint',
   DATA_OBJECT = 'data_object',

@@ -20,8 +20,6 @@ export class JwtAuthService {
       sub: user.id,
       email: user.email,
       tenantId: user.tenantId,
-      iat: Math.floor(Date.now() / 1000),
-      exp: Math.floor(Date.now() / 1000) + 3600, // 1 hour
       type: 'access',
     };
 
@@ -29,14 +27,12 @@ export class JwtAuthService {
       sub: user.id,
       email: user.email,
       tenantId: user.tenantId,
-      iat: Math.floor(Date.now() / 1000),
-      exp: Math.floor(Date.now() / 1000) + 604800, // 7 days
       type: 'refresh',
     };
 
     const [accessToken, refreshToken] = await Promise.all([
-      this.jwtService.signAsync(accessPayload),
-      this.jwtService.signAsync(refreshPayload),
+      this.jwtService.signAsync(accessPayload, { expiresIn: '1h' }),
+      this.jwtService.signAsync(refreshPayload, { expiresIn: '7d' }),
     ]);
 
     return {

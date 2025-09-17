@@ -99,22 +99,26 @@ describe('JwtAuthService', () => {
       });
 
       expect(jwtService.signAsync).toHaveBeenCalledTimes(2);
-      expect(jwtService.signAsync).toHaveBeenNthCalledWith(1, {
-        sub: mockUser.id,
-        email: mockUser.email,
-        tenantId: mockUser.tenantId,
-        iat: expect.any(Number) as unknown,
-        exp: expect.any(Number) as unknown,
-        type: 'access',
-      });
-      expect(jwtService.signAsync).toHaveBeenNthCalledWith(2, {
-        sub: mockUser.id,
-        email: mockUser.email,
-        tenantId: mockUser.tenantId,
-        iat: expect.any(Number) as unknown,
-        exp: expect.any(Number) as unknown,
-        type: 'refresh',
-      });
+      expect(jwtService.signAsync).toHaveBeenNthCalledWith(
+        1,
+        {
+          sub: mockUser.id,
+          email: mockUser.email,
+          tenantId: mockUser.tenantId,
+          type: 'access',
+        },
+        { expiresIn: '1h' },
+      );
+      expect(jwtService.signAsync).toHaveBeenNthCalledWith(
+        2,
+        {
+          sub: mockUser.id,
+          email: mockUser.email,
+          tenantId: mockUser.tenantId,
+          type: 'refresh',
+        },
+        { expiresIn: '7d' },
+      );
     });
 
     it('should handle different expiration formats', async () => {

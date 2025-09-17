@@ -9,6 +9,8 @@ import {
   LogoutRequestDto,
   LogoutResponseDto,
   RefreshTokenRequestDto,
+  UserRegistrationRequestDto,
+  UserRegistrationResponseDto,
   ValidateTokenRequestDto,
   ValidateTokenResponseDto,
 } from './dto/auth.dto';
@@ -48,6 +50,28 @@ export class AuthServiceController {
     return this.authService.login(loginDto, ip, userAgent);
   }
 
+  @Post('register')
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({
+    summary: 'User registration',
+    description: 'Register a new user with specified type (admin, regular user, etc.)',
+  })
+  @ApiBody({ type: UserRegistrationRequestDto })
+  @ApiResponse({
+    status: HttpStatus.CREATED,
+    description: 'User registered successfully',
+    type: UserRegistrationResponseDto,
+  })
+  @ApiResponse({
+    status: HttpStatus.BAD_REQUEST,
+    description: 'Validation error or user already exists',
+  })
+  async registerUser(
+    @Body() registrationDto: UserRegistrationRequestDto,
+  ): Promise<UserRegistrationResponseDto> {
+    return this.authService.registerUser(registrationDto);
+  }
+
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
@@ -79,6 +103,10 @@ export class AuthServiceController {
     status: HttpStatus.OK,
     description: 'Token validation result',
     type: ValidateTokenResponseDto,
+  })
+  @ApiResponse({
+    status: HttpStatus.UNAUTHORIZED,
+    description: 'Invalid or expired token',
   })
   async validateToken(
     @Body() validateDto: ValidateTokenRequestDto,
@@ -128,7 +156,7 @@ export class AuthServiceController {
     email: string;
     tenantId: string;
   } {
-    return req.user!;
+    return req.user;
   }
 
   @Get('health')

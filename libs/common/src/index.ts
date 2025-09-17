@@ -8,6 +8,8 @@ export * from './entities/role.entity';
 export * from './entities/policy.entity';
 export * from './entities/resource.entity';
 export * from './entities/audit-log.entity';
+export * from './entities/auth-credential.entity';
+export * from './entities/auth-token.entity';
 
 // Enums
 export * from './enums';

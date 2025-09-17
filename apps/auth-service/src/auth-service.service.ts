@@ -1,4 +1,9 @@
+import { randomBytes } from 'crypto';
+
 import { BadRequestException, Injectable, UnauthorizedException } from '@nestjs/common';
+import * as bcrypt from 'bcrypt';
+
+import { AuthStatus, TokenType, UserStatus, UserType } from '../../../libs/common/src';
 
 import {
   LoginRequestDto,
@@ -6,10 +11,13 @@ import {
   LogoutRequestDto,
   LogoutResponseDto,
   RefreshTokenRequestDto,
+  UserRegistrationRequestDto,
+  UserRegistrationResponseDto,
   ValidateTokenRequestDto,
   ValidateTokenResponseDto,
 } from './dto/auth.dto';
 import { AuthenticatedUser, LoginAttempt } from './interfaces/auth.interface';
+import { AuthCredentialRepository, AuthTokenRepository, UserRepository } from './repositories';
 import { JwtAuthService } from './services/jwt-auth.service';
 
 @Injectable()
@@ -17,7 +25,12 @@ export class AuthServiceService {
   private readonly blacklistedTokens = new Set<string>(); // In production, use Redis
   private readonly loginAttempts = new Map<string, LoginAttempt[]>(); // In production, use database
 
-  constructor(private readonly jwtAuthService: JwtAuthService) {}
+  constructor(
+    private readonly jwtAuthService: JwtAuthService,
+    private readonly userRepository: UserRepository,
+    private readonly authCredentialRepository: AuthCredentialRepository,
+    private readonly authTokenRepository: AuthTokenRepository,
+  ) {}
 
   /**
    * Authenticate user and return JWT tokens
@@ -45,8 +58,8 @@ export class AuthServiceService {
         throw new UnauthorizedException('Invalid credentials');
       }
 
-      // Check user status
-      if (user.status !== 'active') {
+      // Check user status (allow active and pending_invitation for login)
+      if (user.status !== 'active' && user.status !== 'pending_invitation') {
         this.recordFailedAttempt(email, ip, userAgent, 'User inactive');
         throw new UnauthorizedException('Account is not active');
       }
@@ -59,6 +72,19 @@ export class AuthServiceService {
 
       // Update last login (in production, update database)
       user.lastLoginAt = new Date();
+
+      // Update auth credential login tracking
+      await this.authCredentialRepository.updateLastLogin(user.id);
+
+      // Store refresh token in database
+      const refreshTokenHash = await this.jwtAuthService.hashPassword(tokens.refreshToken);
+      await this.authTokenRepository.createToken({
+        userId: user.id,
+        tokenType: TokenType.REFRESH,
+        tokenHash: refreshTokenHash,
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
+        metadata: { loginIp: ip, userAgent },
+      });
 
       return {
         accessToken: tokens.accessToken,
@@ -209,45 +235,85 @@ export class AuthServiceService {
   }
 
   /**
-   * Mock user finder - replace with actual database query
+   * Find user by email and tenant from database
    */
   private async findUserByEmailAndTenant(
     email: string,
     tenantId?: string,
   ): Promise<AuthenticatedUser | null> {
-    // This is a mock implementation
-    // In production, query your database
-    if (email === 'john.doe@acme.com' && tenantId === 'tenant-123') {
+    try {
+      // Find user by email
+      const user = await this.userRepository.findByEmail(email);
+
+      if (!user) {
+        return null;
+      }
+
+      // Check tenant match for non-system admins
+      if (user.userType !== UserType.SYSTEM_ADMIN) {
+        // For non-system admins, both user.tenantId and tenantId must match exactly
+        if (user.tenantId !== tenantId) {
+          return null;
+        }
+      } else {
+        // For system admins, tenantId should be null/undefined and login tenantId should also be null/undefined
+        if (tenantId) {
+          return null; // System admins shouldn't provide a tenantId
+        }
+      }
+
+      // Get auth credentials
+      const authCredential = await this.authCredentialRepository.findByUserId(user.id);
+
+      if (!authCredential) {
+        return null;
+      }
+
       return {
-        id: 'user-789',
-        email: 'john.doe@acme.com',
-        tenantId: 'tenant-123',
-        passwordHash: await this.jwtAuthService.hashPassword('SecurePassword123!'),
-        status: 'active',
-        createdAt: new Date(),
-        updatedAt: new Date(),
+        id: user.id,
+        email: user.email,
+        tenantId: user.tenantId,
+        passwordHash: authCredential.passwordHash,
+        status: user.status,
+        createdAt: user.createdAt,
+        updatedAt: user.updatedAt,
       };
+    } catch (error) {
+      // eslint-disable-next-line no-console
+      console.error('Error finding user:', error);
+      return null;
     }
-    return null;
   }
 
   /**
-   * Mock user finder by ID - replace with actual database query
+   * Find user by ID from database
    */
   private async findUserById(userId: string): Promise<AuthenticatedUser | null> {
-    // This is a mock implementation
-    if (userId === 'user-789') {
+    try {
+      const user = await this.userRepository.findById(userId);
+      if (!user) {
+        return null;
+      }
+
+      const authCredential = await this.authCredentialRepository.findByUserId(user.id);
+      if (!authCredential) {
+        return null;
+      }
+
       return {
-        id: 'user-789',
-        email: 'john.doe@acme.com',
-        tenantId: 'tenant-123',
-        passwordHash: await this.jwtAuthService.hashPassword('SecurePassword123!'),
-        status: 'active',
-        createdAt: new Date(),
-        updatedAt: new Date(),
+        id: user.id,
+        email: user.email,
+        tenantId: user.tenantId,
+        passwordHash: authCredential.passwordHash,
+        status: user.status,
+        createdAt: user.createdAt,
+        updatedAt: user.updatedAt,
       };
+    } catch (error) {
+      // eslint-disable-next-line no-console
+      console.error('Error finding user by ID:', error);
+      return null;
     }
-    return null;
   }
 
   /**
@@ -300,5 +366,98 @@ export class AuthServiceService {
     });
 
     this.loginAttempts.set(key, attempts);
+  }
+
+  /**
+   * Register a new user with specified type
+   */
+  async registerUser(
+    registrationDto: UserRegistrationRequestDto,
+  ): Promise<UserRegistrationResponseDto> {
+    const { email, password, firstName, lastName, userType, tenantId } = registrationDto;
+
+    // Determine user type (default to regular user)
+    const finalUserType = userType ?? UserType.REGULAR_USER;
+
+    // For system admins, tenantId should be null
+    if (finalUserType === UserType.SYSTEM_ADMIN && tenantId) {
+      throw new BadRequestException('System admins cannot be assigned to a tenant');
+    }
+
+    // For non-system users, tenantId is required
+    if (finalUserType !== UserType.SYSTEM_ADMIN && !tenantId) {
+      throw new BadRequestException('tenantId is required for non-system admin users');
+    }
+
+    try {
+      // Hash password
+      const passwordHash = await bcrypt.hash(password, 12);
+
+      // Create user profile
+      const profile = {
+        firstName,
+        lastName,
+        fullName: `${firstName} ${lastName}`,
+      };
+
+      // Create user entity
+      const savedUser = await this.userRepository.createUser({
+        email,
+        userType: finalUserType,
+        tenantId: finalUserType === UserType.SYSTEM_ADMIN ? undefined : tenantId,
+        profile,
+        status: UserStatus.PENDING_INVITATION, // All users start as pending invitation
+      });
+
+      // Create auth credential
+      await this.authCredentialRepository.createCredential({
+        userId: savedUser.id,
+        email,
+        passwordHash,
+        status: AuthStatus.PENDING, // All auth credentials start as pending
+      });
+
+      // For non-system users, create an activation token
+      if (finalUserType !== UserType.SYSTEM_ADMIN) {
+        const activationToken = randomBytes(32).toString('hex');
+        const tokenHash = await bcrypt.hash(activationToken, 12);
+
+        await this.authTokenRepository.createToken({
+          userId: savedUser.id,
+          tokenType: TokenType.ACTIVATION,
+          tokenHash,
+          expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
+          metadata: { purpose: 'account_activation' },
+        });
+      }
+
+      return {
+        message: 'User registered successfully',
+        userId: savedUser.id,
+        email: savedUser.email,
+        userType: savedUser.userType,
+        tenantId: savedUser.tenantId || undefined, // Convert null to undefined
+      };
+    } catch (error) {
+      // Handle database unique constraint violations for email
+      if (error instanceof Error) {
+        const errorMessage = error.message;
+
+        // Check for PostgreSQL unique constraint violation
+        if (
+          errorMessage.includes('duplicate key value') &&
+          errorMessage.includes('unique constraint')
+        ) {
+          // Check if it's the email constraint by checking the constraint name
+          // The email unique constraint has this specific name
+          if (errorMessage.includes('UQ_64358e9de820068515ed2e14a36')) {
+            throw new BadRequestException('User with this email already exists');
+          }
+        }
+      }
+
+      // Re-throw other errors
+      throw error;
+    }
   }
 }

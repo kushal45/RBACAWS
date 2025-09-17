@@ -1,4 +1,6 @@
 import { AuditLog } from '../entities/audit-log.entity';
+import { AuthCredential } from '../entities/auth-credential.entity';
+import { AuthToken } from '../entities/auth-token.entity';
 import { Policy } from '../entities/policy.entity';
 import { Resource } from '../entities/resource.entity';
 import { Role } from '../entities/role.entity';
@@ -19,7 +21,7 @@ export const getDatabaseConfig = (configService: ConfigService): TypeOrmModuleOp
     password: configService.get('DATABASE_PASSWORD', 'password'),
     database: configService.get('DATABASE_NAME', 'rbac_dev'),
     // Explicitly list all entities for reliable loading
-    entities: [Tenant, User, Role, Policy, Resource, AuditLog],
+    entities: [Tenant, User, Role, Policy, Resource, AuditLog, AuthCredential, AuthToken],
     synchronize: !isProduction, // Only sync in development
     logging: configService.get('LOG_LEVEL') === 'debug' ? 'all' : false,
     ssl: isProduction ? { rejectUnauthorized: false } : false,

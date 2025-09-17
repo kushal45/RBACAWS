@@ -7,12 +7,14 @@ import {
   OneToMany,
   Index,
 } from 'typeorm';
+
 import { TenantStatus } from '../enums';
+
+import type { AuditLog } from './audit-log.entity';
+import type { Resource } from './resource.entity';
+import type { Role } from './role.entity';
+import type { User } from './user.entity';
 import type { TenantConfig } from '../interfaces';
-import { User } from './user.entity';
-import { Role } from './role.entity';
-import { Resource } from './resource.entity';
-import { AuditLog } from './audit-log.entity';
 
 @Entity('tenants') // Unsafe call of a(n) `error` type typed value.
 @Index(['status'])
@@ -47,15 +49,15 @@ export class Tenant {
   updatedAt: Date;
 
   // Relationships
-  @OneToMany(() => User, (user) => user.tenant)
+  @OneToMany('User', 'tenant')
   users: User[];
 
-  @OneToMany(() => Role, (role) => role.tenant)
+  @OneToMany('Role', 'tenant')
   roles: Role[];
 
-  @OneToMany(() => Resource, (resource) => resource.tenant)
+  @OneToMany('Resource', 'tenant')
   resources: Resource[];
 
-  @OneToMany(() => AuditLog, (auditLog) => auditLog.tenant)
+  @OneToMany('AuditLog', 'tenant')
   auditLogs: AuditLog[];
 }

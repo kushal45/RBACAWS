@@ -11,11 +11,13 @@ import {
   Index,
   JoinColumn,
 } from 'typeorm';
+
 import { UserStatus } from '../enums';
+
+import type { AuditLog } from './audit-log.entity';
+import type { Role } from './role.entity';
+import type { Tenant } from './tenant.entity';
 import type { UserProfile } from '../interfaces';
-import { Tenant } from './tenant.entity';
-import { Role } from './role.entity';
-import { AuditLog } from './audit-log.entity';
 
 @Entity('users')
 @Index(['tenantId', 'email'], { unique: true })
@@ -64,11 +66,11 @@ export class User {
   updatedAt: Date;
 
   // Relationships
-  @ManyToOne(() => Tenant, (tenant) => tenant.users)
+  @ManyToOne('Tenant', 'users')
   @JoinColumn({ name: 'tenantId' })
   tenant: Tenant;
 
-  @ManyToMany(() => Role, (role) => role.users)
+  @ManyToMany('Role', 'users')
   @JoinTable({
     name: 'user_roles',
     joinColumn: { name: 'userId', referencedColumnName: 'id' },
@@ -76,6 +78,6 @@ export class User {
   })
   roles: Role[];
 
-  @OneToMany(() => AuditLog, (auditLog) => auditLog.user)
+  @OneToMany('AuditLog', 'user')
   auditLogs: AuditLog[];
 }

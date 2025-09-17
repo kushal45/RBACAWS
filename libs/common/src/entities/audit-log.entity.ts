@@ -1,15 +1,17 @@
 import {
-  Entity,
   Column,
-  PrimaryGeneratedColumn,
   CreateDateColumn,
-  ManyToOne,
+  Entity,
   Index,
   JoinColumn,
+  ManyToOne,
+  PrimaryGeneratedColumn,
 } from 'typeorm';
+
 import { AuditLogAction, AuditLogResult } from '../enums';
-import { Tenant } from './tenant.entity';
-import { User } from './user.entity';
+
+import type { Tenant } from './tenant.entity';
+import type { User } from './user.entity';
 
 @Entity('audit_logs')
 @Index(['tenantId', 'action'])
@@ -43,7 +45,7 @@ export class AuditLog {
   result: AuditLogResult;
 
   @Column('jsonb', { nullable: true })
-  metadata: Record<string, any>;
+  metadata: Record<string, unknown>;
 
   @Column({ nullable: true })
   ipAddress: string;
@@ -58,11 +60,11 @@ export class AuditLog {
   createdAt: Date;
 
   // Relationships
-  @ManyToOne(() => Tenant, (tenant) => tenant.auditLogs)
+  @ManyToOne('Tenant', 'auditLogs')
   @JoinColumn({ name: 'tenantId' })
   tenant: Tenant;
 
-  @ManyToOne(() => User, (user) => user.auditLogs, { nullable: true })
+  @ManyToOne('User', 'auditLogs', { nullable: true })
   @JoinColumn({ name: 'userId' })
   user: User;
 }

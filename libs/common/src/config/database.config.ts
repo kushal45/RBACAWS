@@ -1,15 +1,14 @@
-import { TypeOrmModuleOptions } from '@nestjs/typeorm';
-import { ConfigService } from '@nestjs/config';
-import { Tenant } from '../entities/tenant.entity';
-import { User } from '../entities/user.entity';
-import { Role } from '../entities/role.entity';
+import { AuditLog } from '../entities/audit-log.entity';
 import { Policy } from '../entities/policy.entity';
 import { Resource } from '../entities/resource.entity';
-import { AuditLog } from '../entities/audit-log.entity';
+import { Role } from '../entities/role.entity';
+import { Tenant } from '../entities/tenant.entity';
+import { User } from '../entities/user.entity';
 
-export const getDatabaseConfig = (
-  configService: ConfigService,
-): TypeOrmModuleOptions => {
+import type { ConfigService } from '@nestjs/config';
+import type { TypeOrmModuleOptions } from '@nestjs/typeorm';
+
+export const getDatabaseConfig = (configService: ConfigService): TypeOrmModuleOptions => {
   const isProduction = configService.get('NODE_ENV') === 'production';
 
   return {

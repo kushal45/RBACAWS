@@ -1,0 +1,161 @@
+{
+  "editor.formatOnSave": true,
+  "editor.formatOnPaste": true,
+  "editor.formatOnType": false,
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": "explicit"
+  },
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "editor.rulers": [100],
+  "editor.tabSize": 2,
+  "editor.insertSpaces": true,
+  "editor.detectIndentation": false,
+  "editor.trimAutoWhitespace": true,
+  "files.trimTrailingWhitespace": true,
+  "files.insertFinalNewline": true,
+  "files.trimFinalNewlines": true,
+  "files.eol": "\n",
+
+  // TypeScript settings
+  "typescript.preferences.importModuleSpecifier": "relative",
+  "typescript.suggest.autoImports": false,
+  "typescript.suggest.completeFunctionCalls": true,
+  "typescript.suggest.includeCompletionsForImportStatements": false,
+  "typescript.updateImportsOnFileMove.enabled": "never",
+  "typescript.format.insertSpaceAfterOpeningAndBeforeClosingNonemptyBraces": true,
+  "typescript.format.insertSpaceAfterOpeningAndBeforeClosingTemplateStringBraces": true,
+  "typescript.format.semicolons": "insert",
+
+  // JavaScript settings
+  "javascript.preferences.importModuleSpecifier": "relative",
+  "javascript.suggest.autoImports": false,
+  "javascript.updateImportsOnFileMove.enabled": "never",
+  "javascript.format.insertSpaceAfterOpeningAndBeforeClosingNonemptyBraces": true,
+  "javascript.format.insertSpaceAfterOpeningAndBeforeClosingTemplateStringBraces": true,
+  "javascript.format.semicolons": "insert",
+
+  // ESLint settings
+  "eslint.validate": [
+    "javascript",
+    "javascriptreact",
+    "typescript",
+    "typescriptreact"
+  ],
+  "eslint.run": "onType",
+  "eslint.format.enable": false,
+  "eslint.codeActionsOnSave.mode": "all",
+
+  // Prettier settings
+  "prettier.requireConfig": true,
+  "prettier.useEditorConfig": false,
+
+  // File associations
+  "[typescript]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "editor.formatOnSave": true
+  },
+  "[typescriptreact]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "editor.formatOnSave": true
+  },
+  "[javascript]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "editor.formatOnSave": true
+  },
+  "[javascriptreact]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "editor.formatOnSave": true
+  },
+  "[json]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "editor.formatOnSave": true
+  },
+  "[jsonc]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "editor.formatOnSave": true
+  },
+  "[yaml]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "editor.formatOnSave": true
+  },
+  "[yml]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "editor.formatOnSave": true
+  },
+  "[markdown]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "editor.formatOnSave": true,
+    "editor.wordWrap": "on",
+    "editor.rulers": [80]
+  },
+
+  // Search and file settings
+  "search.exclude": {
+    "**/node_modules": true,
+    "**/dist": true,
+    "**/build": true,
+    "**/coverage": true,
+    "**/.nx": true,
+    "**/.cache": true,
+    "**/logs": true,
+    "**/*.log": true
+  },
+  "files.exclude": {
+    "**/.git": true,
+    "**/.DS_Store": true,
+    "**/Thumbs.db": true,
+    "**/node_modules": true,
+    "**/dist": true,
+    "**/build": true
+  },
+  "files.watcherExclude": {
+    "**/node_modules/**": true,
+    "**/dist/**": true,
+    "**/build/**": true,
+    "**/coverage/**": true,
+    "**/.nx/**": true,
+    "**/.cache/**": true
+  },
+
+  // Explorer settings
+  "explorer.fileNesting.enabled": true,
+  "explorer.fileNesting.patterns": {
+    "*.ts": "${capture}.js, ${capture}.d.ts, ${capture}.js.map, ${capture}.spec.ts, ${capture}.test.ts",
+    "*.js": "${capture}.js.map, ${capture}.min.js, ${capture}.d.ts",
+    "*.jsx": "${capture}.js",
+    "*.tsx": "${capture}.ts",
+    "package.json": "package-lock.json, pnpm-lock.yaml, yarn.lock, .npmrc, .yarnrc, .yarnrc.yml, .pnpmfile.cjs, npm-shrinkwrap.json",
+    "tsconfig.json": "tsconfig.*.json, tsconfig.tsbuildinfo",
+    ".eslintrc.js": ".eslintrc.*, .eslintignore, eslint.config.*",
+    ".prettierrc": ".prettierrc.*, .prettierignore",
+    "README.md": "*.md"
+  },
+
+  // Terminal settings
+  "terminal.integrated.defaultProfile.osx": "zsh",
+  "terminal.integrated.fontSize": 14,
+  "terminal.integrated.scrollback": 10000,
+
+  // Git settings
+  "git.enableSmartCommit": true,
+  "git.confirmSync": false,
+  "git.autofetch": true,
+
+  // Performance settings
+  "typescript.disableAutomaticTypeAcquisition": false,
+  "typescript.tsc.autoDetect": "on",
+  "npm.autoDetect": "on",
+
+  // Breadcrumbs
+  "breadcrumbs.enabled": true,
+  "breadcrumbs.symbolPath": "on",
+
+  // Problems view
+  "problems.decorations.enabled": true,
+  "problems.showCurrentInStatus": true,
+
+  // Workbench settings
+  "workbench.editor.enablePreview": false,
+  "workbench.editor.restoreViewState": true,
+  "workbench.editor.revealIfOpen": true
+}

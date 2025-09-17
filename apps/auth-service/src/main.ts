@@ -1,15 +1,16 @@
-import { NestFactory } from '@nestjs/core';
+import { Logger, ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { ValidationPipe, Logger } from '@nestjs/common';
-import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
+import { NestFactory } from '@nestjs/core';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+
 import { AuthServiceModule } from './auth-service.module';
 
-async function bootstrap() {
+async function bootstrap(): Promise<void> {
   const logger = new Logger('AuthService');
   const app = await NestFactory.create(AuthServiceModule);
-  
+
   const configService = app.get(ConfigService);
-  const port = configService.get('AUTH_SERVICE_PORT', 3200);
+  const port = configService.get<number>('AUTH_SERVICE_PORT', 3200);
 
   // Global validation pipe
   app.useGlobalPipes(
@@ -34,4 +35,5 @@ async function bootstrap() {
   logger.log(`Auth Service running on port ${port}`);
   logger.log(`Swagger documentation available at http://localhost:${port}/docs`);
 }
-bootstrap();
+
+void bootstrap();

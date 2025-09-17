@@ -1,12 +1,5 @@
-import {
-  IsString,
-  IsOptional,
-  IsObject,
-  IsArray,
-  IsUUID,
-  IsNotEmpty,
-} from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { IsArray, IsNotEmpty, IsObject, IsOptional, IsString, IsUUID } from 'class-validator';
 
 export class AuthorizationRequestDto {
   @ApiProperty({ description: 'User ID requesting access' })
@@ -26,7 +19,7 @@ export class AuthorizationRequestDto {
   @ApiPropertyOptional({ description: 'Additional context for authorization' })
   @IsOptional()
   @IsObject()
-  context?: Record<string, any>;
+  context?: Record<string, unknown>;
 }
 
 export class AuthorizationResponseDto {
@@ -73,7 +66,7 @@ export class PolicySimulationRequestDto {
   @ApiPropertyOptional({ description: 'Additional context for simulation' })
   @IsOptional()
   @IsObject()
-  context?: Record<string, any>;
+  context?: Record<string, unknown>;
 }
 
 export class PolicySimulationResultDto {

@@ -1,6 +1,9 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
+
 import { AuthServiceController } from './auth-service.controller';
 import { AuthServiceService } from './auth-service.service';
+
+import type { TestingModule } from '@nestjs/testing';
 
 describe('AuthServiceController', () => {
   let authServiceController: AuthServiceController;
@@ -14,9 +17,12 @@ describe('AuthServiceController', () => {
     authServiceController = app.get<AuthServiceController>(AuthServiceController);
   });
 
-  describe('root', () => {
-    it('should return "Hello World!"', () => {
-      expect(authServiceController.getHello()).toBe('Hello World!');
+  describe('health', () => {
+    it('should return health status', () => {
+      const result = authServiceController.getHealth();
+      expect(result).toHaveProperty('status', 'healthy');
+      expect(result).toHaveProperty('timestamp');
+      expect(typeof result.timestamp).toBe('string');
     });
   });
 });

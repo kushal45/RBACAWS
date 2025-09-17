@@ -1,4 +1,4 @@
-import { PolicyEffect, AuditLogAction, AuditLogResult } from '../enums';
+import type { AuditLogAction, AuditLogResult, PolicyEffect } from '../enums';
 
 export interface PolicyStatement {
   effect: PolicyEffect;
@@ -23,7 +23,7 @@ export interface AuthorizationRequest {
   tenantId: string;
   action: string;
   resource: string;
-  context?: Record<string, any>;
+  context?: Record<string, unknown>;
 }
 
 export interface AuthorizationResult {
@@ -40,7 +40,7 @@ export interface AuditLogEntry {
   action: AuditLogAction;
   resource?: string;
   result: AuditLogResult;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
   timestamp: Date;
   ipAddress?: string;
   userAgent?: string;
@@ -51,7 +51,7 @@ export interface TenantConfig {
   maxRoles?: number;
   features?: string[];
   customDomain?: string;
-  settings?: Record<string, any>;
+  settings?: Record<string, unknown>;
 }
 
 export interface UserProfile {
@@ -60,7 +60,7 @@ export interface UserProfile {
   displayName?: string;
   email: string;
   avatar?: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 export interface RolePermissions {
@@ -91,7 +91,7 @@ export interface PolicySimulationRequest {
   tenantId: string;
   actions: string[];
   resources: string[];
-  context?: Record<string, any>;
+  context?: Record<string, unknown>;
 }
 
 export interface PolicySimulationResult {

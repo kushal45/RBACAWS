@@ -1,12 +1,13 @@
-import { NestFactory } from '@nestjs/core';
+import { Logger, ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { ValidationPipe, Logger } from '@nestjs/common';
-import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
-import { ApiGatewayModule } from './api-gateway.module';
-import helmet from 'helmet';
+import { NestFactory } from '@nestjs/core';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import compression from 'compression';
+import helmet from 'helmet';
 
-async function bootstrap() {
+import { ApiGatewayModule } from './api-gateway.module';
+
+async function bootstrap(): Promise<void> {
   const logger = new Logger('ApiGateway');
   const app = await NestFactory.create(ApiGatewayModule);
   const configService = app.get(ConfigService);
@@ -42,18 +43,14 @@ async function bootstrap() {
     .setDescription('Multi-tenant RBAC system API Gateway')
     .setVersion('1.0')
     .addBearerAuth()
-    .addApiKey(
-      { type: 'apiKey', name: 'x-tenant-id', in: 'header' },
-      'tenant-id',
-    )
+    .addApiKey({ type: 'apiKey', name: 'x-tenant-id', in: 'header' }, 'tenant-id')
     .build();
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('docs', app, document);
 
   await app.listen(port);
   logger.log(`API Gateway running on port ${port}`);
-  logger.log(
-    `Swagger documentation available at http://localhost:${port}/docs`,
-  );
+  logger.log(`Swagger documentation available at http://localhost:${port}/docs`);
 }
-bootstrap();
+
+void bootstrap();

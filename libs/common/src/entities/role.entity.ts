@@ -10,10 +10,12 @@ import {
   Index,
   JoinColumn,
 } from 'typeorm';
+
 import { RoleType } from '../enums';
-import { Tenant } from './tenant.entity';
-import { User } from './user.entity';
-import { Policy } from './policy.entity';
+
+import type { Policy } from './policy.entity';
+import type { Tenant } from './tenant.entity';
+import type { User } from './user.entity';
 
 @Entity('roles')
 @Index(['tenantId', 'name'], { unique: true })
@@ -56,13 +58,13 @@ export class Role {
   updatedAt!: Date;
 
   // Relationships
-  @ManyToOne(() => Tenant, (tenant) => tenant.roles)
+  @ManyToOne('Tenant', 'roles')
   @JoinColumn({ name: 'tenantId' })
   tenant!: Tenant;
 
-  @ManyToMany(() => User, (user) => user.roles)
+  @ManyToMany('User', 'roles')
   users!: User[];
 
-  @OneToMany(() => Policy, (policy) => policy.role)
+  @OneToMany('Policy', 'role')
   policies!: Policy[];
 }

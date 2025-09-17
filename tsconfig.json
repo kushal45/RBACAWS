@@ -4,7 +4,7 @@
     "moduleResolution": "nodenext",
     "resolvePackageJsonExports": true,
     "esModuleInterop": true,
-  "isolatedModules": false,
+    "isolatedModules": false,
     "declaration": true,
     "removeComments": true,
     "emitDecoratorMetadata": true,
@@ -22,12 +22,8 @@
     "strictBindCallApply": false,
     "noFallthroughCasesInSwitch": false,
     "paths": {
-      "@lib/common": [
-        "libs/common/src"
-      ],
-      "@lib/common/*": [
-        "libs/common/src/*"
-      ]
+      "@lib/common": ["libs/common/src"],
+      "@lib/common/*": ["libs/common/src/*"]
     }
   }
 }

@@ -239,11 +239,326 @@ sequenceDiagram
 - Document API endpoints and flows in `/docs`
 - Plan for multi-region deployment and HA
 
-## 6. References & Resources
+## 6. Policy Examples & Sample Data
+
+### Policy Schema Format
+```json
+{
+  "Version": "2025-09-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": ["resource:read", "resource:update"],
+      "Resource": ["arn:app:tenantX:resource:abc123"],
+      "Condition": {
+        "StringEquals": { "user:department": "engineering" }
+      }
+    }
+  ]
+}
+```
+
+### Sample Policy Examples
+
+#### Administrative Policy
+```json
+{
+  "Version": "2025-09-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": ["*"],
+      "Resource": ["arn:app:tenant-123:*"],
+      "Condition": {
+        "StringEquals": { "user:role": "admin" }
+      }
+    }
+  ]
+}
+```
+
+#### Read-Only User Policy
+```json
+{
+  "Version": "2025-09-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": ["resource:read", "user:profile:read"],
+      "Resource": ["arn:app:tenant-123:resource:*", "arn:app:tenant-123:user:self"],
+      "Condition": {
+        "StringEquals": { "user:status": "active" }
+      }
+    }
+  ]
+}
+```
+
+#### Department-Based Policy
+```json
+{
+  "Version": "2025-09-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": ["document:read", "document:write"],
+      "Resource": ["arn:app:tenant-123:document:*"],
+      "Condition": {
+        "StringEquals": { "user:department": "hr" },
+        "StringLike": { "resource:category": "hr-*" }
+      }
+    }
+  ]
+}
+```
+
+## 7. Sample API Requests & Responses
+
+### Create Tenant
+**Request:**
+```http
+POST /api/tenants
+Content-Type: application/json
+Authorization: Bearer <admin_jwt>
+
+{
+  "name": "Acme Corporation",
+  "slug": "acme-corp",
+  "description": "Technology company",
+  "config": {
+    "maxUsers": 1000,
+    "features": ["sso", "audit", "analytics"]
+  }
+}
+```
+
+**Response:**
+```json
+{
+  "id": "tenant-123",
+  "name": "Acme Corporation",
+  "slug": "acme-corp",
+  "status": "active",
+  "createdAt": "2025-09-17T10:00:00Z"
+}
+```
+
+### Add User to Tenant
+**Request:**
+```http
+POST /api/tenants/tenant-123/users
+Content-Type: application/json
+Authorization: Bearer <admin_jwt>
+
+{
+  "email": "john.doe@acme.com",
+  "profile": {
+    "firstName": "John",
+    "lastName": "Doe",
+    "department": "engineering"
+  },
+  "roleIds": ["role-456"]
+}
+```
+
+**Response:**
+```json
+{
+  "id": "user-789",
+  "email": "john.doe@acme.com",
+  "status": "pending_invitation",
+  "invitationToken": "inv_token_xyz",
+  "createdAt": "2025-09-17T10:05:00Z"
+}
+```
+
+### Create Role
+**Request:**
+```http
+POST /api/tenants/tenant-123/roles
+Content-Type: application/json
+Authorization: Bearer <admin_jwt>
+
+{
+  "name": "Engineering Lead",
+  "description": "Lead engineers with team management access",
+  "type": "custom",
+  "permissions": ["user:manage", "project:read", "project:write"],
+  "metadata": {
+    "level": "senior",
+    "department": "engineering"
+  }
+}
+```
+
+**Response:**
+```json
+{
+  "id": "role-456",
+  "name": "Engineering Lead",
+  "type": "custom",
+  "systemRole": false,
+  "createdAt": "2025-09-17T10:10:00Z"
+}
+```
+
+### Authorization Check
+**Request:**
+```http
+POST /api/authorize
+Content-Type: application/json
+Authorization: Bearer <user_jwt>
+
+{
+  "userId": "user-789",
+  "action": "document:read",
+  "resource": "arn:app:tenant-123:document:doc-001",
+  "context": {
+    "ip": "192.168.1.100",
+    "userAgent": "Mozilla/5.0...",
+    "department": "engineering"
+  }
+}
+```
+
+**Response:**
+```json
+{
+  "decision": "ALLOW",
+  "principal": "user-789",
+  "action": "document:read",
+  "resource": "arn:app:tenant-123:document:doc-001",
+  "evaluatedAt": "2025-09-17T10:15:00Z",
+  "policies": [
+    {
+      "id": "policy-001",
+      "name": "Engineering Document Access",
+      "effect": "ALLOW"
+    }
+  ]
+}
+```
+
+### Policy Simulation
+**Request:**
+```http
+POST /api/tenants/tenant-123/policy-simulate
+Content-Type: application/json
+Authorization: Bearer <admin_jwt>
+
+{
+  "userId": "user-789",
+  "scenarios": [
+    {
+      "action": "document:delete",
+      "resource": "arn:app:tenant-123:document:doc-001"
+    },
+    {
+      "action": "user:create",
+      "resource": "arn:app:tenant-123:user:*"
+    }
+  ]
+}
+```
+
+**Response:**
+```json
+{
+  "userId": "user-789",
+  "results": [
+    {
+      "action": "document:delete",
+      "resource": "arn:app:tenant-123:document:doc-001",
+      "decision": "DENY",
+      "reason": "No matching policy allows this action"
+    },
+    {
+      "action": "user:create",
+      "resource": "arn:app:tenant-123:user:*",
+      "decision": "ALLOW",
+      "matchedPolicy": "policy-002"
+    }
+  ],
+  "simulatedAt": "2025-09-17T10:20:00Z"
+}
+```
+
+### Fetch Audit Logs
+**Request:**
+```http
+GET /api/tenants/tenant-123/audit-logs?limit=10&action=permission_check
+Authorization: Bearer <admin_jwt>
+```
+
+**Response:**
+```json
+{
+  "logs": [
+    {
+      "id": "log-001",
+      "tenantId": "tenant-123",
+      "userId": "user-789",
+      "action": "permission_check",
+      "resource": "arn:app:tenant-123:document:doc-001",
+      "result": "success",
+      "metadata": {
+        "decision": "ALLOW",
+        "policies": ["policy-001"]
+      },
+      "timestamp": "2025-09-17T10:15:00Z"
+    }
+  ],
+  "pagination": {
+    "total": 1,
+    "limit": 10,
+    "offset": 0
+  }
+}
+```
+
+## 8. Advanced Policy Patterns
+
+### Time-Based Access
+```json
+{
+  "Version": "2025-09-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": ["system:access"],
+      "Resource": ["*"],
+      "Condition": {
+        "DateGreaterThan": { "aws:CurrentTime": "09:00:00Z" },
+        "DateLessThan": { "aws:CurrentTime": "17:00:00Z" },
+        "ForAllValues:StringEquals": { "aws:RequestedRegion": ["us-east-1"] }
+      }
+    }
+  ]
+}
+```
+
+### IP-Based Restrictions
+```json
+{
+  "Version": "2025-09-17",
+  "Statement": [
+    {
+      "Effect": "Deny",
+      "Action": ["*"],
+      "Resource": ["*"],
+      "Condition": {
+        "NotIpAddress": { "aws:SourceIp": ["192.168.1.0/24", "10.0.0.0/8"] }
+      }
+    }
+  ]
+}
+```
+
+## 9. References & Resources
 - [NestJS Docs](https://docs.nestjs.com)
 - [Nx Monorepo](https://nx.dev)
 - [TypeORM](https://typeorm.io)
 - [Policy-based Authorization (IAM)](https://docs.aws.amazon.com/IAM/latest/UserGuide/access_policies.html)
 
 ---
-This document provides end-to-end clarity on the architecture, current coverage, and future roadmap for the multi-tenant RBAC/IAM system.
+This document provides end-to-end clarity on the architecture, current coverage, future roadmap, policy examples, and sample API interactions for the multi-tenant RBAC/IAM system.

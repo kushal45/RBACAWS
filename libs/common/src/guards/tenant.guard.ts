@@ -46,9 +46,7 @@ export class TenantGuard implements CanActivate {
 
     // If both are present, they must match
     if (userTenantId && userTenantId !== requestTenantId) {
-      throw new ForbiddenException(
-        'Access denied: User does not belong to the requested tenant',
-      );
+      throw new ForbiddenException('Access denied: User does not belong to the requested tenant');
     }
 
     // Store tenant ID in request context for easy access

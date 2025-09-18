@@ -1,18 +1,15 @@
 import { Controller, Post, Body, HttpStatus, UseGuards } from '@nestjs/common';
-import {
-  ApiTags,
-  ApiOperation,
-  ApiResponse,
-  ApiBearerAuth,
-} from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+
 import {
   AuthorizationRequestDto,
   AuthorizationResponseDto,
   PolicySimulationRequestDto,
   PolicySimulationResultDto,
   TenantGuard,
-  //TenantId,
+  // TenantId,
 } from '@lib/common';
+
 import { AuthorizationService } from '../services/authorization.service';
 
 @ApiTags('Authorization')

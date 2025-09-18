@@ -1,19 +1,24 @@
-import { NestFactory } from '@nestjs/core';
+import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { ValidationPipe, Logger } from '@nestjs/common';
-import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
-import { ApiGatewayModule } from './api-gateway.module';
-import helmet from 'helmet';
-import compression from 'compression';
+import { NestFactory } from '@nestjs/core';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import * as compression from 'compression';
+import * as helmet from 'helmet';
 
-async function bootstrap() {
-  const logger = new Logger('ApiGateway');
+import { EnterpriseLoggerService } from '../../../libs/common/src';
+
+import { ApiGatewayModule } from './api-gateway.module';
+
+async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(ApiGatewayModule);
   const configService = app.get(ConfigService);
+  const logger = app.get(EnterpriseLoggerService);
+  logger.setContext('ApiGateway');
+
   const port = configService.get<number>('API_GATEWAY_PORT', 3000);
 
   // Security middleware
-  app.use(helmet());
+  app.use(helmet.default());
   app.use(compression());
 
   // CORS configuration
@@ -42,18 +47,18 @@ async function bootstrap() {
     .setDescription('Multi-tenant RBAC system API Gateway')
     .setVersion('1.0')
     .addBearerAuth()
-    .addApiKey(
-      { type: 'apiKey', name: 'x-tenant-id', in: 'header' },
-      'tenant-id',
-    )
+    .addApiKey({ type: 'apiKey', name: 'x-tenant-id', in: 'header' }, 'tenant-id')
     .build();
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('docs', app, document);
 
   await app.listen(port);
   logger.log(`API Gateway running on port ${port}`);
-  logger.log(
-    `Swagger documentation available at http://localhost:${port}/docs`,
-  );
+  logger.log(`Swagger documentation available at http://localhost:${port}/docs`);
 }
-bootstrap();
+
+bootstrap().catch(error => {
+  // eslint-disable-next-line no-console
+  console.error('Failed to start API Gateway:', error);
+  process.exit(1);
+});

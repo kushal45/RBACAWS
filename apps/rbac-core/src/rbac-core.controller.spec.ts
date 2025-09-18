@@ -1,6 +1,9 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
+
 import { RbacCoreController } from './rbac-core.controller';
 import { RbacCoreService } from './rbac-core.service';
+
+import type { TestingModule } from '@nestjs/testing';
 
 describe('RbacCoreController', () => {
   let rbacCoreController: RbacCoreController;

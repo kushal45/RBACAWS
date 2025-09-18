@@ -1,3 +1,4 @@
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsString,
   IsOptional,
@@ -8,9 +9,10 @@ import {
   MaxLength,
   Matches,
 } from 'class-validator';
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { TenantStatus } from '../';
-import type { TenantConfig } from '../';
+
+import { TenantStatus } from '../enums';
+
+import type { TenantConfig } from '../interfaces';
 
 export class CreateTenantDto {
   @ApiProperty({ description: 'Tenant name' })

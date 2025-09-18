@@ -1,7 +1,10 @@
-import { Test, TestingModule } from '@nestjs/testing';
-import { INestApplication } from '@nestjs/common';
-import * as request from 'supertest';
-import { RbacCoreModule } from './../src/rbac-core.module';
+import { Test } from '@nestjs/testing';
+import request from 'supertest';
+
+import { RbacCoreModule } from '../src/rbac-core.module';
+
+import type { INestApplication } from '@nestjs/common';
+import type { TestingModule } from '@nestjs/testing';
 
 describe('RbacCoreController (e2e)', () => {
   let app: INestApplication;
@@ -16,9 +19,7 @@ describe('RbacCoreController (e2e)', () => {
   });
 
   it('/ (GET)', () => {
-    return request(app.getHttpServer())
-      .get('/')
-      .expect(200)
-      .expect('Hello World!');
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+    return request(app.getHttpServer()).get('/').expect(200).expect('Hello World!');
   });
 });

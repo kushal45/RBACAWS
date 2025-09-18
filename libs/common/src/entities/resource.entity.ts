@@ -1,17 +1,19 @@
 import {
-  Entity,
   Column,
-  PrimaryGeneratedColumn,
   CreateDateColumn,
-  UpdateDateColumn,
-  ManyToOne,
-  OneToMany,
+  Entity,
   Index,
   JoinColumn,
+  ManyToOne,
+  OneToMany,
+  PrimaryGeneratedColumn,
+  UpdateDateColumn,
 } from 'typeorm';
+
 import { ResourceType } from '../enums';
-import { Tenant } from './tenant.entity';
-import { Policy } from './policy.entity';
+
+import type { Policy } from './policy.entity';
+import type { Tenant } from './tenant.entity';
 
 @Entity('resources')
 @Index(['tenantId', 'name'], { unique: true })
@@ -55,7 +57,7 @@ export class Resource {
   tags: string[];
 
   @Column('jsonb', { nullable: true })
-  metadata: Record<string, any>;
+  metadata: Record<string, unknown>;
 
   @CreateDateColumn()
   createdAt: Date;
@@ -64,17 +66,17 @@ export class Resource {
   updatedAt: Date;
 
   // Relationships
-  @ManyToOne(() => Tenant, (tenant) => tenant.resources)
+  @ManyToOne('Tenant', 'resources')
   @JoinColumn({ name: 'tenantId' })
   tenant: Tenant;
 
-  @ManyToOne(() => Resource, { nullable: true })
+  @ManyToOne('Resource', { nullable: true })
   @JoinColumn({ name: 'parentResourceId' })
   parentResource: Resource;
 
-  @OneToMany(() => Resource, (resource) => resource.parentResource)
+  @OneToMany('Resource', 'parentResource')
   childResources: Resource[];
 
-  @OneToMany(() => Policy, (policy) => policy.resource)
+  @OneToMany('Policy', 'resource')
   policies: Policy[];
 }

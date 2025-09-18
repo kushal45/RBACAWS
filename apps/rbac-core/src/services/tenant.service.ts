@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+
 import {
   Tenant,
   TenantStatus,
@@ -24,10 +25,7 @@ export class TenantService {
   async createTenant(createTenantDto: CreateTenantDto): Promise<TenantResponseDto> {
     // Check if tenant with same name or slug already exists
     const existingTenant = await this.tenantRepository.findOne({
-      where: [
-        { name: createTenantDto.name },
-        { slug: createTenantDto.slug },
-      ],
+      where: [{ name: createTenantDto.name }, { slug: createTenantDto.slug }],
     });
 
     if (existingTenant) {
@@ -41,7 +39,7 @@ export class TenantService {
 
     const tenant = this.tenantRepository.create({
       ...createTenantDto,
-      status: createTenantDto.status || TenantStatus.ACTIVE,
+      status: createTenantDto.status ?? TenantStatus.ACTIVE,
     });
 
     const savedTenant = await this.tenantRepository.save(tenant);
@@ -54,7 +52,7 @@ export class TenantService {
     status?: TenantStatus,
   ): Promise<{ tenants: TenantResponseDto[]; total: number; page: number; limit: number }> {
     const queryBuilder = this.tenantRepository.createQueryBuilder('tenant');
-    
+
     if (status) {
       queryBuilder.where('tenant.status = :status', { status });
     }
@@ -143,7 +141,7 @@ export class TenantService {
     }
 
     // Check if tenant has dependencies
-    if (tenant.users?.length > 0 || tenant.roles?.length > 0 || tenant.resources?.length > 0) {
+    if (tenant.users.length > 0 || tenant.roles.length > 0 || tenant.resources.length > 0) {
       throw new BadRequestException(
         'Cannot delete tenant with existing users, roles, or resources. Please remove all dependencies first.',
       );

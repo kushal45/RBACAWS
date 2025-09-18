@@ -1,31 +1,43 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+
 import {
-  User,
-  Policy,
-  PolicyEffect,
   AuthorizationRequest,
   AuthorizationResult,
+  Policy,
+  PolicyCondition,
+  PolicyEffect,
   PolicySimulationRequest,
   PolicySimulationResult,
   PolicyStatement,
-  PolicyCondition,
+  User,
+  EnterpriseLoggerService,
 } from '@lib/common';
 
 @Injectable()
 export class AuthorizationService {
-  private readonly logger = new Logger(AuthorizationService.name);
+  private readonly logger: EnterpriseLoggerService;
 
   constructor(
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
     @InjectRepository(Policy)
     private readonly policyRepository: Repository<Policy>,
-  ) {}
+    logger: EnterpriseLoggerService,
+  ) {
+    this.logger = logger;
+    this.logger.setContext('AuthorizationService');
+  }
 
   async authorize(request: AuthorizationRequest): Promise<AuthorizationResult> {
-    this.logger.debug(`Authorization request: ${JSON.stringify(request)}`);
+    this.logger.debug('Authorization request received', {
+      operation: 'authorize',
+      userId: request.userId,
+      tenantId: request.tenantId,
+      action: request.action,
+      resource: request.resource,
+    });
 
     try {
       // Get user with roles and policies
@@ -55,13 +67,23 @@ export class AuthorizationService {
         policies,
         request.action,
         request.resource,
-        request.context || {},
+        request.context ?? {},
       );
 
-      this.logger.debug(`Authorization result: ${JSON.stringify(evaluationResult)}`);
+      this.logger.debug('Authorization result generated', {
+        operation: 'authorize',
+        allowed: evaluationResult.allowed,
+        reason: evaluationResult.reason,
+        policiesEvaluated: evaluationResult.evaluatedPolicies.length,
+      });
       return evaluationResult;
     } catch (error) {
-      this.logger.error(`Authorization error: ${error.message}`, error.stack);
+      this.logger.error('Authorization error', (error as Error).stack || 'No stack trace', {
+        operation: 'authorize',
+        userId: request.userId,
+        tenantId: request.tenantId,
+        error: error as Error,
+      });
       return {
         allowed: false,
         reason: 'Internal error during authorization',
@@ -75,20 +97,12 @@ export class AuthorizationService {
     const results: PolicySimulationResult['results'] = [];
 
     // Get all applicable policies for the user
-    const policies = await this.getApplicablePolicies(
-      request.userId,
-      request.tenantId,
-    );
+    const policies = await this.getApplicablePolicies(request.userId, request.tenantId);
 
     // Test each action-resource combination
     for (const action of request.actions) {
       for (const resource of request.resources) {
-        const evaluation = this.evaluatePolicies(
-          policies,
-          action,
-          resource,
-          request.context || {},
-        );
+        const evaluation = this.evaluatePolicies(policies, action, resource, request.context ?? {});
 
         results.push({
           action,
@@ -118,10 +132,9 @@ export class AuthorizationService {
       .leftJoin('role.users', 'roleUsers')
       .where('policy.tenantId = :tenantId', { tenantId })
       .andWhere('policy.active = true')
-      .andWhere(
-        '(policy.userId = :userId OR (role.id IS NOT NULL AND roleUsers.id = :userId))',
-        { userId },
-      );
+      .andWhere('(policy.userId = :userId OR (role.id IS NOT NULL AND roleUsers.id = :userId))', {
+        userId,
+      });
 
     // If resource is specified, we might want to filter policies further
     // This is a simplified version - in production, you'd want more sophisticated ARN matching
@@ -142,7 +155,7 @@ export class AuthorizationService {
     policies: Policy[],
     action: string,
     resource: string,
-    context: Record<string, any>,
+    context: Record<string, unknown>,
   ): AuthorizationResult {
     const evaluatedPolicies: string[] = [];
     let hasExplicitAllow = false;
@@ -154,18 +167,14 @@ export class AuthorizationService {
       evaluatedPolicies.push(policy.name);
 
       for (const statement of policy.document.statement) {
-        const statementEvaluation = this.evaluateStatement(
-          statement,
-          action,
-          resource,
-          context,
-        );
+        const statementEvaluation = this.evaluateStatement(statement, action, resource, context);
 
         if (statementEvaluation.matches) {
           if (statement.effect === PolicyEffect.DENY) {
             hasExplicitDeny = true;
             denyReason = `Denied by policy "${policy.name}": ${statementEvaluation.reason}`;
-          } else if (statement.effect === PolicyEffect.ALLOW) {
+          } else {
+            // Must be PolicyEffect.ALLOW since enum only has DENY and ALLOW
             hasExplicitAllow = true;
             allowReason = `Allowed by policy "${policy.name}": ${statementEvaluation.reason}`;
           }
@@ -206,7 +215,7 @@ export class AuthorizationService {
     statement: PolicyStatement,
     action: string,
     resource: string,
-    context: Record<string, any>,
+    context: Record<string, unknown>,
   ): { matches: boolean; reason: string } {
     // Check if action matches
     const actionMatches = this.matchesPattern(statement.action, action);
@@ -246,14 +255,16 @@ export class AuthorizationService {
   private matchesPattern(patterns: string[], value: string): boolean {
     return patterns.some(pattern => {
       // Simple wildcard matching - in production, you'd want more sophisticated ARN matching
-      if (pattern === '*') return true;
-      if (pattern === value) return true;
-      
+      if (pattern === '*') {
+        return true;
+      }
+      if (pattern === value) {
+        return true;
+      }
+
       // Convert wildcard pattern to regex
-      const regexPattern = pattern
-        .replace(/\*/g, '.*')
-        .replace(/\?/g, '.');
-      
+      const regexPattern = pattern.replace(/\*/g, '.*').replace(/\?/g, '.');
+
       const regex = new RegExp(`^${regexPattern}$`, 'i');
       return regex.test(value);
     });
@@ -261,12 +272,14 @@ export class AuthorizationService {
 
   private evaluateConditions(
     conditions: PolicyCondition,
-    context: Record<string, any>,
+    context: Record<string, unknown>,
   ): boolean {
     for (const [operator, condition] of Object.entries(conditions)) {
-      for (const [key, expectedValue] of Object.entries(condition)) {
+      for (const [key, expectedValue] of Object.entries(
+        condition as Record<string, string | string[] | number | boolean>,
+      )) {
         const contextValue = this.getContextValue(key, context);
-        
+
         if (!this.evaluateCondition(operator, contextValue, expectedValue)) {
           return false;
         }
@@ -275,26 +288,26 @@ export class AuthorizationService {
     return true;
   }
 
-  private getContextValue(key: string, context: Record<string, any>): any {
+  private getContextValue(key: string, context: Record<string, unknown>): unknown {
     // Support nested key access with dot notation
     const keys = key.split('.');
-    let value = context;
-    
+    let value: unknown = context;
+
     for (const k of keys) {
-      if (value && typeof value === 'object' && k in value) {
-        value = value[k];
+      if (typeof value === 'object' && value !== null && k in value) {
+        value = (value as Record<string, unknown>)[k];
       } else {
         return undefined;
       }
     }
-    
+
     return value;
   }
 
   private evaluateCondition(
     operator: string,
-    contextValue: any,
-    expectedValue: any,
+    contextValue: unknown,
+    expectedValue: unknown,
   ): boolean {
     switch (operator) {
       case 'StringEquals':
@@ -313,13 +326,37 @@ export class AuthorizationService {
         return Number(contextValue) > Number(expectedValue);
       case 'Bool':
         return Boolean(contextValue) === Boolean(expectedValue);
-      case 'StringEqualsIgnoreCase':
-        return String(contextValue).toLowerCase() === String(expectedValue).toLowerCase();
+      case 'StringEqualsIgnoreCase': {
+        let contextStr: string;
+        if (typeof contextValue === 'string') {
+          contextStr = contextValue;
+        } else if (typeof contextValue === 'number' || typeof contextValue === 'boolean') {
+          contextStr = String(contextValue);
+        } else {
+          contextStr = JSON.stringify(contextValue);
+        }
+
+        let expectedStr: string;
+        if (typeof expectedValue === 'string') {
+          expectedStr = expectedValue;
+        } else if (typeof expectedValue === 'number' || typeof expectedValue === 'boolean') {
+          expectedStr = String(expectedValue);
+        } else {
+          expectedStr = JSON.stringify(expectedValue);
+        }
+
+        return contextStr.toLowerCase() === expectedStr.toLowerCase();
+      }
       case 'IpAddress':
         // Simplified IP check - in production, you'd use proper IP libraries
         return contextValue === expectedValue;
       default:
-        this.logger.warn(`Unknown condition operator: ${operator}`);
+        this.logger.warn('Unknown condition operator', {
+          operation: 'evaluateCondition',
+          operator,
+          contextValue,
+          expectedValue,
+        });
         return false;
     }
   }

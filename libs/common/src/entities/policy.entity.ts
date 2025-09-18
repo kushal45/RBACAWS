@@ -1,18 +1,19 @@
 import {
-  Entity,
   Column,
-  PrimaryGeneratedColumn,
   CreateDateColumn,
-  UpdateDateColumn,
-  ManyToOne,
+  Entity,
   Index,
   JoinColumn,
+  ManyToOne,
+  PrimaryGeneratedColumn,
+  UpdateDateColumn,
 } from 'typeorm';
+
+import type { Resource } from './resource.entity';
+import type { Role } from './role.entity';
+import type { Tenant } from './tenant.entity';
+import type { User } from './user.entity';
 import type { PolicyDocument } from '../interfaces';
-import { Tenant } from './tenant.entity';
-import { Role } from './role.entity';
-import { User } from './user.entity';
-import { Resource } from './resource.entity';
 
 @Entity('policies')
 @Index(['tenantId', 'name'], { unique: true })
@@ -51,7 +52,7 @@ export class Policy {
   resourceId: string;
 
   @Column('jsonb', { nullable: true })
-  metadata: Record<string, any>;
+  metadata: Record<string, unknown>;
 
   @CreateDateColumn()
   createdAt: Date;
@@ -60,19 +61,19 @@ export class Policy {
   updatedAt: Date;
 
   // Relationships
-  @ManyToOne(() => Tenant)
+  @ManyToOne('Tenant')
   @JoinColumn({ name: 'tenantId' })
   tenant: Tenant;
 
-  @ManyToOne(() => Role, (role) => role.policies, { nullable: true })
+  @ManyToOne('Role', 'policies', { nullable: true })
   @JoinColumn({ name: 'roleId' })
   role: Role;
 
-  @ManyToOne(() => User, { nullable: true })
+  @ManyToOne('User', { nullable: true })
   @JoinColumn({ name: 'userId' })
   user: User;
 
-  @ManyToOne(() => Resource, { nullable: true })
+  @ManyToOne('Resource', { nullable: true })
   @JoinColumn({ name: 'resourceId' })
   resource: Resource;
 }

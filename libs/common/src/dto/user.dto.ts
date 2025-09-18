@@ -1,3 +1,4 @@
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsString,
   IsEmail,
@@ -9,9 +10,10 @@ import {
   MinLength,
   MaxLength,
 } from 'class-validator';
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { UserStatus } from '../';
-import type { UserProfile } from '../';
+
+import { UserStatus } from '../enums';
+
+import type { UserProfile } from '../interfaces';
 
 export class CreateUserDto {
   @ApiProperty({ description: 'User email address' })

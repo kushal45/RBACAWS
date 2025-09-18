@@ -1,11 +1,12 @@
-import { NestFactory } from '@nestjs/core';
-import 'reflect-metadata';
+import { Logger, ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { ValidationPipe, Logger } from '@nestjs/common';
-import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
+import { NestFactory } from '@nestjs/core';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import 'reflect-metadata';
+
 import { RbacCoreModule } from './rbac-core.module';
 
-async function bootstrap() {
+async function bootstrap(): Promise<void> {
   const logger = new Logger('RbacCore');
   const app = await NestFactory.create(RbacCoreModule);
   const configService = app.get(ConfigService);
@@ -23,9 +24,7 @@ async function bootstrap() {
   // Swagger documentation
   const config = new DocumentBuilder()
     .setTitle('RBAC Core Service')
-    .setDescription(
-      'Core RBAC functionality - tenant, user, role and policy management',
-    )
+    .setDescription('Core RBAC functionality - tenant, user, role and policy management')
     .setVersion('1.0')
     .addBearerAuth()
     .build();
@@ -34,8 +33,7 @@ async function bootstrap() {
 
   await app.listen(port);
   logger.log(`RBAC Core Service running on port ${port}`);
-  logger.log(
-    `Swagger documentation available at http://localhost:${port}/docs`,
-  );
+  logger.log(`Swagger documentation available at http://localhost:${port}/docs`);
 }
-bootstrap();
+
+void bootstrap();

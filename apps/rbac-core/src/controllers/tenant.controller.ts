@@ -1,34 +1,29 @@
 import {
-  Controller,
-  Get,
-  Post,
   Body,
-  Patch,
-  Param,
-  Delete,
-  Query,
-  ParseUUIDPipe,
+  Controller,
   DefaultValuePipe,
-  ParseIntPipe,
-  ParseEnumPipe,
+  Delete,
+  Get,
   HttpStatus,
-  UseGuards,
+  Param,
+  ParseEnumPipe,
+  ParseIntPipe,
+  ParseUUIDPipe,
+  Patch,
+  Post,
+  Query,
 } from '@nestjs/common';
 import {
-  ApiTags,
-  ApiOperation,
-  ApiResponse,
-  ApiQuery,
   ApiBearerAuth,
+  ApiOperation,
   ApiParam,
+  ApiQuery,
+  ApiResponse,
+  ApiTags,
 } from '@nestjs/swagger';
-import {
-  CreateTenantDto,
-  UpdateTenantDto,
-  TenantResponseDto,
-  TenantStatus,
-  // TenantIsolationGuard,
-} from '@lib/common';
+
+import { CreateTenantDto, TenantResponseDto, TenantStatus, UpdateTenantDto } from '@lib/common';
+
 import { TenantService } from '../services/tenant.service';
 
 @ApiTags('Tenants')
@@ -56,11 +51,11 @@ export class TenantController {
   @ApiOperation({ summary: 'Get all tenants with pagination' })
   @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
   @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
-  @ApiQuery({ 
-    name: 'status', 
-    required: false, 
+  @ApiQuery({
+    name: 'status',
+    required: false,
     enum: TenantStatus,
-    description: 'Filter by tenant status' 
+    description: 'Filter by tenant status',
   })
   @ApiResponse({
     status: HttpStatus.OK,
@@ -81,8 +76,14 @@ export class TenantController {
   async findAllTenants(
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
     @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
-    @Query('status', new ParseEnumPipe(TenantStatus, { optional: true })) status?: TenantStatus,
-  ) {
+    @Query('status', new ParseEnumPipe(TenantStatus, { optional: true }))
+    status?: TenantStatus,
+  ): Promise<{
+    tenants: TenantResponseDto[];
+    total: number;
+    page: number;
+    limit: number;
+  }> {
     return this.tenantService.findAllTenants(page, limit, status);
   }
 
@@ -98,9 +99,7 @@ export class TenantController {
     status: HttpStatus.NOT_FOUND,
     description: 'Tenant not found',
   })
-  async findTenantById(
-    @Param('id', ParseUUIDPipe) id: string,
-  ): Promise<TenantResponseDto> {
+  async findTenantById(@Param('id', ParseUUIDPipe) id: string): Promise<TenantResponseDto> {
     return this.tenantService.findTenantById(id);
   }
 
@@ -156,9 +155,7 @@ export class TenantController {
     status: HttpStatus.NOT_FOUND,
     description: 'Tenant not found',
   })
-  async suspendTenant(
-    @Param('id', ParseUUIDPipe) id: string,
-  ): Promise<TenantResponseDto> {
+  async suspendTenant(@Param('id', ParseUUIDPipe) id: string): Promise<TenantResponseDto> {
     return this.tenantService.suspendTenant(id);
   }
 
@@ -174,9 +171,7 @@ export class TenantController {
     status: HttpStatus.NOT_FOUND,
     description: 'Tenant not found',
   })
-  async activateTenant(
-    @Param('id', ParseUUIDPipe) id: string,
-  ): Promise<TenantResponseDto> {
+  async activateTenant(@Param('id', ParseUUIDPipe) id: string): Promise<TenantResponseDto> {
     return this.tenantService.activateTenant(id);
   }
 

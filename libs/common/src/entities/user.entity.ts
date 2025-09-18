@@ -8,14 +8,19 @@ import {
   ManyToMany,
   JoinTable,
   OneToMany,
+  OneToOne,
   Index,
   JoinColumn,
 } from 'typeorm';
-import { UserStatus } from '../enums';
+
+import { UserStatus, UserType } from '../enums';
+
+import type { AuditLog } from './audit-log.entity';
+import type { AuthCredential } from './auth-credential.entity';
+import type { AuthToken } from './auth-token.entity';
+import type { Role } from './role.entity';
+import type { Tenant } from './tenant.entity';
 import type { UserProfile } from '../interfaces';
-import { Tenant } from './tenant.entity';
-import { Role } from './role.entity';
-import { AuditLog } from './audit-log.entity';
 
 @Entity('users')
 @Index(['tenantId', 'email'], { unique: true })
@@ -25,15 +30,12 @@ export class User {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column()
+  @Column({ name: 'tenant_id', nullable: true }) // nullable for system admins
   @Index()
-  tenantId: string;
+  tenantId?: string;
 
   @Column()
   email: string;
-
-  @Column({ select: false }) // Don't select by default for security
-  passwordHash: string;
 
   @Column({
     type: 'enum',
@@ -45,37 +47,55 @@ export class User {
   @Column('jsonb', { nullable: true })
   profile: UserProfile;
 
-  @Column({ nullable: true })
-  lastLoginAt: Date;
+  @Column({ name: 'last_login_at', nullable: true })
+  lastLoginAt?: Date;
 
-  @Column({ nullable: true })
-  invitedAt: Date;
+  @Column({ name: 'invited_at', nullable: true })
+  invitedAt?: Date;
 
-  @Column({ nullable: true })
-  invitedBy: string;
+  @Column({ name: 'invited_by', nullable: true })
+  invitedBy?: string;
 
-  @Column({ nullable: true })
-  invitationToken: string;
+  @Column({ name: 'activated_at', nullable: true })
+  activatedAt?: Date;
 
-  @CreateDateColumn()
+  @Column({
+    name: 'user_type',
+    type: 'enum',
+    enum: UserType,
+    default: UserType.REGULAR_USER,
+  })
+  userType: UserType;
+
+  @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 
-  @UpdateDateColumn()
+  @UpdateDateColumn({ name: 'updated_at' })
   updatedAt: Date;
 
   // Relationships
-  @ManyToOne(() => Tenant, (tenant) => tenant.users)
-  @JoinColumn({ name: 'tenantId' })
-  tenant: Tenant;
+  @ManyToOne('Tenant', 'users', { nullable: true })
+  @JoinColumn({ name: 'tenant_id' })
+  tenant?: Tenant;
 
-  @ManyToMany(() => Role, (role) => role.users)
+  @ManyToMany('Role', 'users')
   @JoinTable({
     name: 'user_roles',
-    joinColumn: { name: 'userId', referencedColumnName: 'id' },
-    inverseJoinColumn: { name: 'roleId', referencedColumnName: 'id' },
+    joinColumn: { name: 'user_id', referencedColumnName: 'id' },
+    inverseJoinColumn: { name: 'role_id', referencedColumnName: 'id' },
   })
   roles: Role[];
 
-  @OneToMany(() => AuditLog, (auditLog) => auditLog.user)
+  @OneToMany('AuditLog', 'user')
   auditLogs: AuditLog[];
+
+  @OneToOne('AuthCredential', 'user', {
+    cascade: true,
+  })
+  authCredential?: AuthCredential;
+
+  @OneToMany('AuthToken', 'user', {
+    cascade: true,
+  })
+  authTokens: AuthToken[];
 }

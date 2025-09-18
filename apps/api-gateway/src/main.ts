@@ -1,20 +1,24 @@
-import { Logger, ValidationPipe } from '@nestjs/common';
+import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
-import compression from 'compression';
-import helmet from 'helmet';
+import * as compression from 'compression';
+import * as helmet from 'helmet';
+
+import { EnterpriseLoggerService } from '../../../libs/common/src';
 
 import { ApiGatewayModule } from './api-gateway.module';
 
 async function bootstrap(): Promise<void> {
-  const logger = new Logger('ApiGateway');
   const app = await NestFactory.create(ApiGatewayModule);
   const configService = app.get(ConfigService);
+  const logger = app.get(EnterpriseLoggerService);
+  logger.setContext('ApiGateway');
+
   const port = configService.get<number>('API_GATEWAY_PORT', 3000);
 
   // Security middleware
-  app.use(helmet());
+  app.use(helmet.default());
   app.use(compression());
 
   // CORS configuration
@@ -54,7 +58,7 @@ async function bootstrap(): Promise<void> {
 }
 
 bootstrap().catch(error => {
-  const logger = new Logger('Bootstrap');
-  logger.error('Failed to start API Gateway:', error);
+  // eslint-disable-next-line no-console
+  console.error('Failed to start API Gateway:', error);
   process.exit(1);
 });

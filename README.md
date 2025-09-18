@@ -108,6 +108,16 @@ $ npm run test:cov
 - Trunk-based branching (main/develop), PR template
 - Docker Compose for DB & local stack
 - Seed/test scripts for initial data
+- **Comprehensive debugging configurations** - See [Debugging Guide](docs/DEBUGGING.md)
+
+## Debugging & Development
+
+This project includes comprehensive VS Code debugging configurations for all services and tests. See the [Debugging Guide](docs/DEBUGGING.md) for:
+
+- 🚀 Service debugging (API Gateway, Auth Service, RBAC Core, Audit Log Service)
+- 🧪 Test debugging (unit tests, E2E tests, specific test patterns)
+- 🐳 Docker container debugging
+- 🎯 Advanced debugging scenarios and troubleshooting
 
 ## Next Steps
 

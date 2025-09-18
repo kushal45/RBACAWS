@@ -1,6 +1,11 @@
 import { UnauthorizedException, BadRequestException } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 
+import { UserType, UserStatus } from '@lib/common';
+
+import { AuthStatus } from '../../../libs/common/src/entities/auth-credential.entity';
+import { TokenType } from '../../../libs/common/src/entities/auth-token.entity';
+
 import { AuthServiceService } from './auth-service.service';
 import { UserRepository, AuthCredentialRepository, AuthTokenRepository } from './repositories';
 import { JwtAuthService } from './services/jwt-auth.service';
@@ -11,21 +16,35 @@ import type {
   ValidateTokenRequestDto,
   LogoutRequestDto,
 } from './dto/auth.dto';
-import type { AuthenticatedUser, JwtPayload } from './interfaces/auth.interface';
+import type { JwtPayload } from './interfaces/auth.interface';
+import type { User } from '@lib/common';
 import type { TestingModule } from '@nestjs/testing';
 
 describe('AuthServiceService', () => {
   let service: AuthServiceService;
   let jwtAuthService: jest.Mocked<JwtAuthService>;
+  let mockUserRepository: jest.Mocked<UserRepository>;
+  let mockAuthCredentialRepository: jest.Mocked<AuthCredentialRepository>;
+  let mockAuthTokenRepository: jest.Mocked<AuthTokenRepository>;
 
-  const mockUser: AuthenticatedUser = {
-    id: 'user-789',
-    email: 'john.doe@acme.com',
+  const mockUser: User = {
+    id: 'user-id-123',
+    email: 'test@example.com',
+    status: UserStatus.ACTIVE,
+    userType: UserType.REGULAR_USER,
     tenantId: 'tenant-123',
-    passwordHash: 'hashedPassword',
-    status: 'active',
-    createdAt: new Date(),
-    updatedAt: new Date(),
+    lastLoginAt: new Date('2024-01-01'),
+    createdAt: new Date('2024-01-01'),
+    updatedAt: new Date('2024-01-01'),
+    profile: {
+      firstName: 'Test',
+      lastName: 'User',
+      displayName: 'Test User',
+      email: 'test@example.com',
+    },
+    roles: [],
+    auditLogs: [],
+    authTokens: [],
   };
 
   const mockTokens = {
@@ -54,25 +73,50 @@ describe('AuthServiceService', () => {
       decodeToken: jest.fn(),
     };
 
-    const mockUserRepository = {
-      findOne: jest.fn(),
-      save: jest.fn(),
-      create: jest.fn(),
-      findBy: jest.fn(),
-    };
+    mockUserRepository = {
+      findById: jest.fn(),
+      findByEmail: jest.fn(),
+      findByEmailAndTenant: jest.fn(),
+      findSystemAdminByEmail: jest.fn(),
+      createUser: jest.fn(),
+      updateStatus: jest.fn(),
+      updateProfile: jest.fn(),
+      updateLastLogin: jest.fn(),
+      activateUser: jest.fn(),
+      suspendUser: jest.fn(),
+      findUsersByTenant: jest.fn(),
+      countUsersByTenant: jest.fn(),
+      findSystemAdmins: jest.fn(),
+      emailExistsInTenant: jest.fn(),
+      systemAdminEmailExists: jest.fn(),
+    } as unknown as jest.Mocked<UserRepository>;
 
-    const mockAuthCredentialRepository = {
-      findOne: jest.fn(),
-      save: jest.fn(),
-      create: jest.fn(),
-    };
+    mockAuthCredentialRepository = {
+      findByEmail: jest.fn(),
+      findByUserId: jest.fn(),
+      createCredential: jest.fn(),
+      updatePassword: jest.fn(),
+      updateLastLogin: jest.fn(),
+      incrementFailedAttempts: jest.fn(),
+      updateStatus: jest.fn(),
+      lockCredential: jest.fn(),
+      enableTwoFactor: jest.fn(),
+      disableTwoFactor: jest.fn(),
+    } as unknown as jest.Mocked<AuthCredentialRepository>;
 
-    const mockAuthTokenRepository = {
-      findOne: jest.fn(),
-      save: jest.fn(),
-      create: jest.fn(),
-      delete: jest.fn(),
-    };
+    mockAuthTokenRepository = {
+      createToken: jest.fn(),
+      findValidToken: jest.fn(),
+      findUserTokensByType: jest.fn(),
+      markTokenAsUsed: jest.fn(),
+      revokeToken: jest.fn(),
+      revokeUserTokensByType: jest.fn(),
+      revokeAllUserTokens: jest.fn(),
+      cleanupExpiredTokens: jest.fn(),
+      cleanupOldTokens: jest.fn(),
+      hasValidRefreshToken: jest.fn(),
+      getTokenStats: jest.fn(),
+    } as unknown as jest.Mocked<AuthTokenRepository>;
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -100,10 +144,58 @@ describe('AuthServiceService', () => {
     };
 
     it('should successfully login with valid credentials', async () => {
-      // Mock password hashing for the findUser method
-      jwtAuthService.hashPassword.mockResolvedValue('hashedPassword');
+      // Mock user repository to return a user when findByEmail is called
+      mockUserRepository.findByEmail.mockResolvedValue({
+        id: mockUser.id,
+        email: mockUser.email,
+        tenantId: mockUser.tenantId,
+        userType: UserType.TENANT_ADMIN,
+        status: UserStatus.ACTIVE,
+        createdAt: mockUser.createdAt,
+        updatedAt: mockUser.updatedAt,
+        profile: null,
+        roles: [],
+        auditLogs: [],
+        authTokens: [],
+      });
+
+      // Mock auth credential repository to return password hash
+      mockAuthCredentialRepository.findByUserId.mockResolvedValue({
+        id: 'auth-cred-id',
+        userId: mockUser.id,
+        email: mockUser.email,
+        passwordHash: 'hashedPassword123',
+        status: AuthStatus.ACTIVE,
+        failedLoginAttempts: 0,
+        passwordResetRequired: false,
+        twoFactorEnabled: false,
+        createdAt: new Date('2024-01-01'),
+        updatedAt: new Date('2024-01-01'),
+        user: null,
+      });
+
+      // Mock updateLastLogin to resolve successfully
+      mockAuthCredentialRepository.updateLastLogin.mockResolvedValue(undefined);
+
+      // Mock createToken to resolve successfully
+      mockAuthTokenRepository.createToken.mockResolvedValue({
+        id: 'token-123',
+        userId: mockUser.id,
+        tokenType: TokenType.REFRESH,
+        tokenHash: 'hashedRefreshToken',
+        expiresAt: new Date(),
+        createdAt: new Date(),
+        isExpired: false,
+        isUsed: false,
+        isRevoked: false,
+        isValid: true,
+        user: null,
+      });
+
+      // Mock password verification and token generation
       jwtAuthService.verifyPassword.mockResolvedValue(true);
       jwtAuthService.generateTokenPair.mockResolvedValue(mockTokens);
+      jwtAuthService.hashPassword.mockResolvedValue('hashedRefreshToken');
 
       const result = await service.login(loginDto, '192.168.1.1', 'test-agent');
 
@@ -197,8 +289,11 @@ describe('AuthServiceService', () => {
     });
 
     it('should throw UnauthorizedException for blacklisted token', async () => {
+      // Mock JWT validation for logout
+      jwtAuthService.validateToken.mockResolvedValue(mockJwtPayload);
+
       // First, logout to blacklist the token
-      service.logout({ token: refreshDto.refreshToken });
+      await service.logout({ token: refreshDto.refreshToken });
 
       await expect(service.refreshToken(refreshDto)).rejects.toThrow(
         new UnauthorizedException('Token has been revoked'),
@@ -237,8 +332,11 @@ describe('AuthServiceService', () => {
     });
 
     it('should return invalid for blacklisted token', async () => {
+      // Mock JWT validation for logout
+      jwtAuthService.validateToken.mockResolvedValue(mockJwtPayload);
+
       // First, logout to blacklist the token
-      service.logout({ token: validateDto.token });
+      await service.logout({ token: validateDto.token });
 
       const result = await service.validateToken(validateDto);
 
@@ -266,7 +364,7 @@ describe('AuthServiceService', () => {
     };
 
     it('should successfully logout user', async () => {
-      const result = service.logout(logoutDto);
+      const result = await service.logout(logoutDto);
 
       expect(result).toEqual({
         message: 'Successfully logged out',
@@ -287,6 +385,36 @@ describe('AuthServiceService', () => {
     const newPassword = 'NewPassword456!';
 
     it('should successfully change password', async () => {
+      // Mock userRepository.findById to return a user
+      mockUserRepository.findById.mockResolvedValue({
+        id: userId,
+        email: mockUser.email,
+        tenantId: mockUser.tenantId,
+        status: UserStatus.ACTIVE,
+        createdAt: mockUser.createdAt,
+        updatedAt: mockUser.updatedAt,
+        userType: UserType.REGULAR_USER,
+        profile: null,
+        roles: [],
+        auditLogs: [],
+        authTokens: [],
+      });
+
+      // Mock authCredentialRepository.findByUserId to return auth credentials
+      mockAuthCredentialRepository.findByUserId.mockResolvedValue({
+        userId,
+        passwordHash: 'hashedOldPassword',
+        status: AuthStatus.ACTIVE,
+        createdAt: new Date('2024-01-01'),
+        updatedAt: new Date('2024-01-01'),
+        id: 'auth-cred-id',
+        email: mockUser.email,
+        failedLoginAttempts: 0,
+        passwordResetRequired: false,
+        twoFactorEnabled: false,
+        user: null,
+      });
+
       jwtAuthService.validatePasswordStrength.mockReturnValue({
         valid: true,
         errors: [],
@@ -320,6 +448,36 @@ describe('AuthServiceService', () => {
     });
 
     it('should throw UnauthorizedException for invalid current password', async () => {
+      // Mock userRepository.findById to return a user
+      mockUserRepository.findById.mockResolvedValue({
+        id: userId,
+        email: mockUser.email,
+        tenantId: mockUser.tenantId,
+        status: UserStatus.ACTIVE,
+        createdAt: mockUser.createdAt,
+        updatedAt: mockUser.updatedAt,
+        userType: UserType.REGULAR_USER,
+        profile: null,
+        roles: [],
+        auditLogs: [],
+        authTokens: [],
+      });
+
+      // Mock authCredentialRepository.findByUserId to return auth credentials
+      mockAuthCredentialRepository.findByUserId.mockResolvedValue({
+        userId,
+        passwordHash: 'hashedOldPassword',
+        status: AuthStatus.ACTIVE,
+        createdAt: new Date('2024-01-01'),
+        updatedAt: new Date('2024-01-01'),
+        id: 'auth-cred-id',
+        email: mockUser.email,
+        failedLoginAttempts: 0,
+        passwordResetRequired: false,
+        twoFactorEnabled: false,
+        user: null,
+      });
+
       jwtAuthService.validatePasswordStrength.mockReturnValue({
         valid: true,
         errors: [],

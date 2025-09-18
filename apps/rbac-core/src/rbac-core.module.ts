@@ -1,9 +1,10 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { APP_INTERCEPTOR } from '@nestjs/core';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
-import { CommonModule, getDatabaseConfig } from '@lib/common';
+import { CommonModule, getDatabaseConfig, LoggingModule, LoggingInterceptor } from '@lib/common';
 
 import { AuthorizationController } from './controllers/authorization.controller';
 import { TenantController } from './controllers/tenant.controller';
@@ -18,6 +19,7 @@ import { TenantService } from './services/tenant.service';
       isGlobal: true,
       envFilePath: '.env',
     }),
+    LoggingModule.forRoot('rbac-core'),
     TypeOrmModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => getDatabaseConfig(configService),
@@ -36,6 +38,14 @@ import { TenantService } from './services/tenant.service';
     CommonModule,
   ],
   controllers: [RbacCoreController, TenantController, AuthorizationController],
-  providers: [RbacCoreService, TenantService, AuthorizationService],
+  providers: [
+    RbacCoreService,
+    TenantService,
+    AuthorizationService,
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: LoggingInterceptor,
+    },
+  ],
 })
 export class RbacCoreModule {}

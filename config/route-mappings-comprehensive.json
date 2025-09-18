@@ -1,0 +1,275 @@
+{
+  "version": "1.0.0",
+  "services": [
+    {
+      "id": "auth-service",
+      "name": "Authentication Service",
+      "version": "1.0.0",
+      "baseUrl": "${AUTH_SERVICE_URL:http://localhost:3001}",
+      "healthCheck": "/health",
+      "timeout": 5000,
+      "retries": 3,
+      "tags": ["auth", "security"],
+      "environment": "${NODE_ENV:development}"
+    },
+    {
+      "id": "rbac-core",
+      "name": "RBAC Core Service",
+      "version": "1.0.0",
+      "baseUrl": "${RBAC_SERVICE_URL:http://localhost:3002}",
+      "healthCheck": "/health",
+      "timeout": 5000,
+      "retries": 3,
+      "tags": ["rbac", "authorization"],
+      "environment": "${NODE_ENV:development}"
+    },
+    {
+      "id": "audit-log-service",
+      "name": "Audit Log Service",
+      "version": "1.0.0",
+      "baseUrl": "${AUDIT_SERVICE_URL:http://localhost:3003}",
+      "healthCheck": "/health",
+      "timeout": 5000,
+      "retries": 3,
+      "tags": ["audit", "logging"],
+      "environment": "${NODE_ENV:development}"
+    }
+  ],
+  "routeMappings": [
+    {
+      "id": "auth-routes",
+      "pattern": "/api/auth/.*",
+      "patternType": "regex",
+      "service": "auth-service",
+      "priority": 100,
+      "methods": ["GET", "POST", "PUT", "DELETE"],
+      "description": "Authentication and user management routes",
+      "transformations": {
+        "requestTransform": "strip",
+        "responseTransform": "/auth"
+      },
+      "security": {
+        "requireAuth": false,
+        "rateLimit": {
+          "requests": 100,
+          "window": "15m"
+        }
+      },
+      "monitoring": {
+        "trackMetrics": true,
+        "logRequests": true,
+        "alerting": {
+          "errorThreshold": 0.05,
+          "latencyThreshold": 2000
+        }
+      }
+    },
+    {
+      "id": "tenants-routes",
+      "pattern": "/api/tenants.*",
+      "patternType": "regex",
+      "service": "rbac-core",
+      "priority": 95,
+      "methods": ["GET", "POST", "PUT", "DELETE"],
+      "description": "Tenant management routes",
+      "transformations": {
+        "requestTransform": "strip",
+        "responseTransform": "/tenants"
+      },
+      "security": {
+        "requireAuth": true,
+        "permissions": ["tenant:read", "tenant:write"],
+        "rateLimit": {
+          "requests": 200,
+          "window": "15m"
+        }
+      },
+      "monitoring": {
+        "trackMetrics": true,
+        "logRequests": true,
+        "alerting": {
+          "errorThreshold": 0.03,
+          "latencyThreshold": 1500
+        }
+      }
+    },
+    {
+      "id": "users-routes",
+      "pattern": "/api/users.*",
+      "patternType": "regex",
+      "service": "rbac-core",
+      "priority": 94,
+      "methods": ["GET", "POST", "PUT", "DELETE"],
+      "description": "User management routes",
+      "transformations": {
+        "requestTransform": "strip",
+        "responseTransform": "/users"
+      },
+      "security": {
+        "requireAuth": true,
+        "permissions": ["user:read", "user:write"],
+        "rateLimit": {
+          "requests": 200,
+          "window": "15m"
+        }
+      },
+      "monitoring": {
+        "trackMetrics": true,
+        "logRequests": true,
+        "alerting": {
+          "errorThreshold": 0.03,
+          "latencyThreshold": 1500
+        }
+      }
+    },
+    {
+      "id": "roles-routes",
+      "pattern": "/api/roles.*",
+      "patternType": "regex",
+      "service": "rbac-core",
+      "priority": 93,
+      "methods": ["GET", "POST", "PUT", "DELETE"],
+      "description": "Role management routes",
+      "transformations": {
+        "requestTransform": "strip",
+        "responseTransform": "/roles"
+      },
+      "security": {
+        "requireAuth": true,
+        "permissions": ["role:read", "role:write"],
+        "rateLimit": {
+          "requests": 150,
+          "window": "15m"
+        }
+      },
+      "monitoring": {
+        "trackMetrics": true,
+        "logRequests": true,
+        "alerting": {
+          "errorThreshold": 0.03,
+          "latencyThreshold": 1500
+        }
+      }
+    },
+    {
+      "id": "policies-routes",
+      "pattern": "/api/policies.*",
+      "patternType": "regex",
+      "service": "rbac-core",
+      "priority": 92,
+      "methods": ["GET", "POST", "PUT", "DELETE"],
+      "description": "Policy management routes",
+      "transformations": {
+        "requestTransform": "strip",
+        "responseTransform": "/policies"
+      },
+      "security": {
+        "requireAuth": true,
+        "permissions": ["policy:read", "policy:write"],
+        "rateLimit": {
+          "requests": 150,
+          "window": "15m"
+        }
+      },
+      "monitoring": {
+        "trackMetrics": true,
+        "logRequests": true,
+        "alerting": {
+          "errorThreshold": 0.03,
+          "latencyThreshold": 1500
+        }
+      }
+    },
+    {
+      "id": "resources-routes",
+      "pattern": "/api/resources.*",
+      "patternType": "regex",
+      "service": "rbac-core",
+      "priority": 91,
+      "methods": ["GET", "POST", "PUT", "DELETE"],
+      "description": "Resource management routes",
+      "transformations": {
+        "requestTransform": "strip",
+        "responseTransform": "/resources"
+      },
+      "security": {
+        "requireAuth": true,
+        "permissions": ["resource:read", "resource:write"],
+        "rateLimit": {
+          "requests": 150,
+          "window": "15m"
+        }
+      },
+      "monitoring": {
+        "trackMetrics": true,
+        "logRequests": true,
+        "alerting": {
+          "errorThreshold": 0.03,
+          "latencyThreshold": 1500
+        }
+      }
+    },
+    {
+      "id": "authorization-routes",
+      "pattern": "/api/authorization.*",
+      "patternType": "regex",
+      "service": "rbac-core",
+      "priority": 90,
+      "methods": ["GET", "POST"],
+      "description": "Authorization check routes",
+      "transformations": {
+        "requestTransform": "strip",
+        "responseTransform": "/authorization"
+      },
+      "security": {
+        "requireAuth": true,
+        "rateLimit": {
+          "requests": 500,
+          "window": "15m"
+        }
+      },
+      "monitoring": {
+        "trackMetrics": true,
+        "logRequests": false,
+        "alerting": {
+          "errorThreshold": 0.02,
+          "latencyThreshold": 1000
+        }
+      }
+    },
+    {
+      "id": "audit-routes",
+      "pattern": "/api/audit.*",
+      "patternType": "regex",
+      "service": "audit-log-service",
+      "priority": 80,
+      "methods": ["GET", "POST"],
+      "description": "Audit logging and retrieval routes",
+      "transformations": {
+        "requestTransform": "strip",
+        "responseTransform": "/audit-logs"
+      },
+      "security": {
+        "requireAuth": true,
+        "permissions": ["audit:read"],
+        "rateLimit": {
+          "requests": 50,
+          "window": "15m"
+        }
+      },
+      "monitoring": {
+        "trackMetrics": true,
+        "logRequests": false,
+        "alerting": {
+          "errorThreshold": 0.02,
+          "latencyThreshold": 1000
+        }
+      }
+    }
+  ],
+  "globalSettings": {
+    "defaultTimeout": 5000,
+    "defaultRetries": 3,
+    "enableHealthChecks": true
+  }
+}

@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
@@ -12,21 +12,32 @@ import {
   PolicySimulationResult,
   PolicyStatement,
   User,
+  EnterpriseLoggerService,
 } from '@lib/common';
 
 @Injectable()
 export class AuthorizationService {
-  private readonly logger = new Logger(AuthorizationService.name);
+  private readonly logger: EnterpriseLoggerService;
 
   constructor(
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
     @InjectRepository(Policy)
     private readonly policyRepository: Repository<Policy>,
-  ) {}
+    logger: EnterpriseLoggerService,
+  ) {
+    this.logger = logger;
+    this.logger.setContext('AuthorizationService');
+  }
 
   async authorize(request: AuthorizationRequest): Promise<AuthorizationResult> {
-    this.logger.debug(`Authorization request: ${JSON.stringify(request)}`);
+    this.logger.debug('Authorization request received', {
+      operation: 'authorize',
+      userId: request.userId,
+      tenantId: request.tenantId,
+      action: request.action,
+      resource: request.resource,
+    });
 
     try {
       // Get user with roles and policies
@@ -59,10 +70,20 @@ export class AuthorizationService {
         request.context ?? {},
       );
 
-      this.logger.debug(`Authorization result: ${JSON.stringify(evaluationResult)}`);
+      this.logger.debug('Authorization result generated', {
+        operation: 'authorize',
+        allowed: evaluationResult.allowed,
+        reason: evaluationResult.reason,
+        policiesEvaluated: evaluationResult.evaluatedPolicies.length,
+      });
       return evaluationResult;
     } catch (error) {
-      this.logger.error(`Authorization error: ${(error as Error).message}`, (error as Error).stack);
+      this.logger.error('Authorization error', (error as Error).stack || 'No stack trace', {
+        operation: 'authorize',
+        userId: request.userId,
+        tenantId: request.tenantId,
+        error: error as Error,
+      });
       return {
         allowed: false,
         reason: 'Internal error during authorization',
@@ -305,13 +326,37 @@ export class AuthorizationService {
         return Number(contextValue) > Number(expectedValue);
       case 'Bool':
         return Boolean(contextValue) === Boolean(expectedValue);
-      case 'StringEqualsIgnoreCase':
-        return String(contextValue).toLowerCase() === String(expectedValue).toLowerCase();
+      case 'StringEqualsIgnoreCase': {
+        let contextStr: string;
+        if (typeof contextValue === 'string') {
+          contextStr = contextValue;
+        } else if (typeof contextValue === 'number' || typeof contextValue === 'boolean') {
+          contextStr = String(contextValue);
+        } else {
+          contextStr = JSON.stringify(contextValue);
+        }
+
+        let expectedStr: string;
+        if (typeof expectedValue === 'string') {
+          expectedStr = expectedValue;
+        } else if (typeof expectedValue === 'number' || typeof expectedValue === 'boolean') {
+          expectedStr = String(expectedValue);
+        } else {
+          expectedStr = JSON.stringify(expectedValue);
+        }
+
+        return contextStr.toLowerCase() === expectedStr.toLowerCase();
+      }
       case 'IpAddress':
         // Simplified IP check - in production, you'd use proper IP libraries
         return contextValue === expectedValue;
       default:
-        this.logger.warn(`Unknown condition operator: ${operator}`);
+        this.logger.warn('Unknown condition operator', {
+          operation: 'evaluateCondition',
+          operator,
+          contextValue,
+          expectedValue,
+        });
         return false;
     }
   }

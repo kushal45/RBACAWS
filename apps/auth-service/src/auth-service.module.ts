@@ -1,9 +1,15 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
-import { AuthCredential, AuthToken, User } from '../../../libs/common/src';
+import {
+  AuthCredential,
+  AuthToken,
+  User,
+  getDatabaseConfig,
+  LoggingModule,
+} from '../../../libs/common/src';
 
 import { AuthServiceController } from './auth-service.controller';
 import { AuthServiceService } from './auth-service.service';
@@ -12,12 +18,17 @@ import { JwtAuthService } from './services/jwt-auth.service';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([User, AuthCredential, AuthToken]),
     ConfigModule.forRoot({
       isGlobal: true,
     }),
+    LoggingModule.forRoot('auth-service'),
+    TypeOrmModule.forRootAsync({
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService) => getDatabaseConfig(configService),
+    }),
+    TypeOrmModule.forFeature([User, AuthCredential, AuthToken]),
     JwtModule.register({
-      secret: process.env.JWT_SECRET || 'test-secret-key',
+      secret: process.env.JWT_SECRET,
       signOptions: { expiresIn: '1h' },
     }),
   ],

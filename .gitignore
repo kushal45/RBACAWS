@@ -42,6 +42,17 @@ lerna-debug.log*
 .env.production.local
 .env.local
 
+# Service-specific environment files
+apps/*/.env
+apps/*/.env.local
+apps/*/.env.development.local
+apps/*/.env.test.local
+apps/*/.env.production.local
+
+# Keep .env.example files for documentation
+!.env.example
+!apps/*/.env.example
+
 # temp directory
 .temp
 .tmp

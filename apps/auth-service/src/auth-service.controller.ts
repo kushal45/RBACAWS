@@ -19,7 +19,7 @@ import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import type { AuthenticatedRequest } from './interfaces/auth.interface';
 
 @ApiTags('Authentication')
-@Controller('auth')
+@Controller()
 export class AuthServiceController {
   constructor(private readonly authService: AuthServiceService) {}
 
@@ -132,7 +132,7 @@ export class AuthServiceController {
     status: HttpStatus.UNAUTHORIZED,
     description: 'Invalid or expired token',
   })
-  logout(@Body() logoutDto: LogoutRequestDto): LogoutResponseDto {
+  async logout(@Body() logoutDto: LogoutRequestDto): Promise<LogoutResponseDto> {
     return this.authService.logout(logoutDto);
   }
 

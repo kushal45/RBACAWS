@@ -16,6 +16,7 @@ export * from './enums';
 
 // Interfaces
 export * from './interfaces';
+export * from './interfaces/service-discovery.interface';
 
 // DTOs
 export * from './dto/tenant.dto';
@@ -30,3 +31,11 @@ export * from './guards/tenant.guard';
 
 // Config
 export * from './config/database.config';
+export * from './config/service-registry.config';
+export * from './config/route-mapping.config';
+export * from './config/logging.config';
+
+// Logging
+export * from './services/enterprise-logger.service';
+export * from './modules/logging.module';
+export * from './interceptors/logging.interceptor';

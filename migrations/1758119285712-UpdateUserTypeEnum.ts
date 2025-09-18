@@ -17,7 +17,6 @@ export class UpdateUserTypeEnum1758119285712 implements MigrationInterface {
   public async down(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`ALTER TABLE "users" DROP COLUMN "user_type"`);
     await queryRunner.query(`DROP TYPE "public"."users_user_type_enum"`);
-    await queryRunner.query(`ALTER TABLE "users" ADD "user_type" boolean NOT NULL DEFAULT false`);
-    await queryRunner.query(`ALTER TABLE "users" RENAME COLUMN "user_type" TO "is_system_admin"`);
+    await queryRunner.query(`ALTER TABLE "users" ADD "is_system_admin" boolean NOT NULL DEFAULT false`);
   }
 }

@@ -56,7 +56,7 @@ function getDefaultServices(configService: ConfigService): ServiceInfo[] {
       name: 'rbac-core',
       host: configService.get<string>('RBAC_CORE_HOST', 'localhost'),
       port: configService.get<number>('RBAC_CORE_PORT', 3100),
-      health: '//health',
+      health: '/health',
       version: configService.get<string>('RBAC_CORE_VERSION', '1.0.0'),
       tags: ['rbac', 'tenants', 'users', 'roles'],
       routes: [

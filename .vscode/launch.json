@@ -26,7 +26,8 @@
       "internalConsoleOptions": "neverOpen",
       "skipFiles": [
         "<node_internals>/**"
-      ]
+      ],
+      "preLaunchTask": "build-api-gateway"
     },
     {
       "name": "🔐 Debug Auth Service",

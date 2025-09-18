@@ -23,6 +23,7 @@ import { JwtAuthService } from './services/jwt-auth.service';
     }),
     LoggingModule.forRoot('auth-service'),
     TypeOrmModule.forRootAsync({
+      imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => getDatabaseConfig(configService),
     }),

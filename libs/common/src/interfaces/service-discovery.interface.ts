@@ -1,3 +1,14 @@
+import type { RouteTransformation } from '../config/route-mapping.config';
+
+export interface RouteMapping {
+  pattern: RegExp;
+  service: string;
+  transformations?: RouteTransformation;
+  // Legacy support for backward compatibility
+  stripPrefix?: boolean;
+  rewrite?: string;
+}
+
 export interface ServiceInfo {
   name: string;
   host: string;
@@ -15,11 +26,4 @@ export interface ServiceRegistry {
   discoverByRoute(route: string): Promise<ServiceInfo | null>;
   getAllServices(): Promise<ServiceInfo[]>;
   healthCheck(serviceName: string): Promise<boolean>;
-}
-
-export interface RouteMapping {
-  pattern: RegExp;
-  service: string;
-  stripPrefix?: boolean;
-  rewrite?: string;
 }

@@ -36,6 +36,6 @@ export * from './config/route-mapping.config';
 export * from './config/logging.config';
 
 // Logging
-export * from './services/enterprise-logger.service';
 export * from './modules/logging.module';
+export * from './services/enterprise-logger.service';
 export * from './interceptors/logging.interceptor';

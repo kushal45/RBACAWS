@@ -4,8 +4,8 @@ import type { RouteMapping } from '../interfaces/service-discovery.interface';
 import type { ConfigService } from '@nestjs/config';
 
 export interface RouteTransformation {
-  requestTransform?: string;
-  responseTransform?: string;
+  stripPrefix?: boolean;
+  rewrite?: string;
   headers?: Record<string, string>;
 }
 
@@ -178,11 +178,22 @@ export function convertRouteMapping(enhanced: EnhancedRouteMapping): RouteMappin
     }
   }
 
+  // Properly map transformations from JSON configuration
+  const transformations: RouteTransformation | undefined = enhanced.transformations
+    ? {
+        stripPrefix: enhanced.transformations.stripPrefix,
+        rewrite: enhanced.transformations.rewrite,
+        headers: enhanced.transformations.headers,
+      }
+    : undefined;
+
   return {
     pattern,
     service: enhanced.service,
-    stripPrefix: enhanced.transformations?.requestTransform === 'strip',
-    rewrite: enhanced.transformations?.responseTransform,
+    transformations,
+    // Legacy support for backward compatibility
+    stripPrefix: enhanced.transformations?.stripPrefix,
+    rewrite: enhanced.transformations?.rewrite,
   };
 }
 

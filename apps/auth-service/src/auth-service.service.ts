@@ -3,13 +3,7 @@ import { randomBytes } from 'crypto';
 import { BadRequestException, Injectable, UnauthorizedException } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 
-import {
-  AuthStatus,
-  TokenType,
-  UserStatus,
-  UserType,
-  EnterpriseLoggerService,
-} from '../../../libs/common/src';
+import { AuthStatus, TokenType, UserStatus, UserType } from '../../../libs/common/src';
 
 import {
   LoginRequestDto,
@@ -28,25 +22,15 @@ import { JwtAuthService } from './services/jwt-auth.service';
 
 @Injectable()
 export class AuthServiceService {
-  private readonly logger: EnterpriseLoggerService;
-  private readonly blacklistedTokens = new Map<string, number>(); // token -> expiry timestamp
+  private readonly blacklistedTokens = new Set<string>(); // In production, use Redis
   private readonly loginAttempts = new Map<string, LoginAttempt[]>(); // In production, use database
-  private readonly cleanupIntervalMs = 15 * 60 * 1000; // 15 minutes in milliseconds
-  private cleanupTimer: NodeJS.Timeout | null = null;
 
   constructor(
     private readonly jwtAuthService: JwtAuthService,
     private readonly userRepository: UserRepository,
     private readonly authCredentialRepository: AuthCredentialRepository,
     private readonly authTokenRepository: AuthTokenRepository,
-    logger: EnterpriseLoggerService,
-  ) {
-    this.logger = logger;
-    this.logger.setContext('AuthServiceService');
-
-    // Start periodic cleanup for in-memory blacklist
-    this.startBlacklistCleanup();
-  }
+  ) {}
 
   /**
    * Authenticate user and return JWT tokens
@@ -128,7 +112,7 @@ export class AuthServiceService {
   async refreshToken(refreshDto: RefreshTokenRequestDto): Promise<LoginResponseDto> {
     const { refreshToken } = refreshDto;
 
-    if (this.isTokenBlacklisted(refreshToken)) {
+    if (this.blacklistedTokens.has(refreshToken)) {
       throw new UnauthorizedException('Token has been revoked');
     }
 
@@ -151,14 +135,7 @@ export class AuthServiceService {
           tenantId: payload.tenantId,
         },
       };
-    } catch (error) {
-      // Don't mask "Token has been revoked" errors
-      if (
-        error instanceof UnauthorizedException &&
-        (error as Error)?.message === 'Token has been revoked'
-      ) {
-        throw error;
-      }
+    } catch {
       throw new UnauthorizedException('Invalid refresh token');
     }
   }
@@ -169,7 +146,7 @@ export class AuthServiceService {
   async validateToken(validateDto: ValidateTokenRequestDto): Promise<ValidateTokenResponseDto> {
     const { token } = validateDto;
 
-    if (this.isTokenBlacklisted(token)) {
+    if (this.blacklistedTokens.has(token)) {
       return {
         valid: false,
         error: 'Token has been revoked',
@@ -196,118 +173,19 @@ export class AuthServiceService {
   }
 
   /**
-   * Check if token is blacklisted
-   * First checks Redis, then fallback to in-memory map
-   * Also cleans up expired tokens from in-memory map
-   */
-  private isTokenBlacklisted(token: string): boolean {
-    try {
-      // TODO: Check Redis first when Redis is configured
-      // if (this.redisClient) {
-      //   const result = await this.redisClient.get(`blacklist:${token}`);
-      //   if (result !== null) return true;
-      // }
-
-      // Check in-memory blacklist
-      const expiryTime = this.blacklistedTokens.get(token);
-      if (expiryTime !== undefined) {
-        // Check if token has expired in blacklist
-        if (Date.now() > expiryTime) {
-          // Clean up expired token
-          this.blacklistedTokens.delete(token);
-          return false;
-        }
-        return true;
-      }
-
-      return false;
-    } catch (error) {
-      this.logger.error(
-        'Error checking token blacklist',
-        (error as Error).stack || 'No stack trace',
-        {
-          operation: 'isTokenBlacklisted',
-          error: error as Error,
-        },
-      );
-      // Fallback to in-memory check only
-      const expiryTime = this.blacklistedTokens.get(token);
-      return expiryTime !== undefined && Date.now() <= expiryTime;
-    }
-  }
-
-  /**
    * Logout user and blacklist token
-   * First validates token signature and parses exp claim
-   * Stores token in Redis-backed blacklist with computed TTL
    */
-  async logout(logoutDto: LogoutRequestDto): Promise<LogoutResponseDto> {
+  logout(logoutDto: LogoutRequestDto): LogoutResponseDto {
     const { token } = logoutDto;
 
-    try {
-      // First validate the token signature and parse its claims
-      const payload = await this.jwtAuthService.validateToken(token);
+    // Add token to blacklist
+    this.blacklistedTokens.add(token);
 
-      // Extract expiration time from token
-      const expirationTime = payload.exp * 1000; // Convert to milliseconds
-      const currentTime = Date.now();
+    // In production, store blacklisted tokens in Redis with TTL
 
-      // Only blacklist if token hasn't expired yet
-      if (expirationTime > currentTime) {
-        // TODO: Store in Redis first when Redis is configured
-        // if (this.redisClient) {
-        //   const ttlSeconds = Math.ceil((expirationTime - currentTime) / 1000);
-        //   await this.redisClient.setex(`blacklist:${token}`, ttlSeconds, '1');
-        // }
-
-        // Store in in-memory blacklist with expiration time
-        this.blacklistedTokens.set(token, expirationTime);
-
-        this.logger.log(`Token blacklisted until ${new Date(expirationTime).toISOString()}`);
-      } else {
-        this.logger.log('Token already expired, no need to blacklist');
-      }
-
-      return {
-        message: 'Successfully logged out',
-      };
-    } catch (error) {
-      // If token validation fails, still allow logout but log the issue
-      this.logger.warn('Invalid token provided for logout, allowing logout anyway', {
-        operation: 'logout',
-        error: error as Error,
-      });
-      return {
-        message: 'Successfully logged out',
-      };
-    }
-  }
-
-  /**
-   * Start periodic cleanup of expired tokens from in-memory blacklist
-   * This prevents memory leaks when Redis is not available
-   */
-  private startBlacklistCleanup(): void {
-    // Clean up every 15 minutes
-    this.cleanupTimer = setInterval(() => {
-      const currentTime = Date.now();
-      let cleanedCount = 0;
-
-      for (const [token, expiryTime] of this.blacklistedTokens.entries()) {
-        if (currentTime > expiryTime) {
-          this.blacklistedTokens.delete(token);
-          cleanedCount++;
-        }
-      }
-
-      if (cleanedCount > 0) {
-        this.logger.log(`Cleaned up ${cleanedCount} expired tokens from blacklist`);
-      }
-    }, this.cleanupIntervalMs);
-
-    this.logger.log(
-      `Started blacklist cleanup with ${this.cleanupIntervalMs / 1000 / 60} minute intervals`,
-    );
+    return {
+      message: 'Successfully logged out',
+    };
   }
 
   /**
@@ -401,12 +279,8 @@ export class AuthServiceService {
         updatedAt: user.updatedAt,
       };
     } catch (error) {
-      this.logger.error('Error finding user', (error as Error).stack || 'No stack trace', {
-        operation: 'findUserByEmail',
-        email,
-        tenantId,
-        error: error as Error,
-      });
+      // eslint-disable-next-line no-console
+      console.error('Error finding user:', error);
       return null;
     }
   }
@@ -436,11 +310,8 @@ export class AuthServiceService {
         updatedAt: user.updatedAt,
       };
     } catch (error) {
-      this.logger.error('Error finding user by ID', (error as Error).stack || 'No stack trace', {
-        operation: 'findUserById',
-        userId,
-        error: error as Error,
-      });
+      // eslint-disable-next-line no-console
+      console.error('Error finding user by ID:', error);
       return null;
     }
   }

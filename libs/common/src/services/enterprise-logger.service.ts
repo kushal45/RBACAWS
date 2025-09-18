@@ -1,4 +1,4 @@
-import { Injectable, LoggerService, Scope, Inject } from '@nestjs/common';
+import { Injectable, LoggerService, Inject } from '@nestjs/common';
 import * as cls from 'cls-hooked';
 import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
 import { Logger } from 'winston';
@@ -26,7 +26,7 @@ export interface PerformanceMetrics {
   operation: string;
 }
 
-@Injectable({ scope: Scope.TRANSIENT })
+@Injectable()
 export class EnterpriseLoggerService implements LoggerService {
   private context?: string;
   private correlationNamespace = cls.createNamespace('correlation');

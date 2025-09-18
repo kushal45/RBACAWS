@@ -11,9 +11,27 @@ import {
   loadRouteMappingConfig,
   convertRouteMapping,
   RouteMappingConfiguration,
-  ServiceMetadata,
   EnterpriseLoggerService,
 } from '@lib/common';
+
+// Flexible service metadata type that handles both formats
+interface FlexibleServiceMetadata {
+  id?: string;
+  name: string;
+  version?: string;
+  baseUrl?: string;
+  host?: string;
+  port?: number;
+  healthCheck?: string;
+  health?: string;
+  timeout?: number;
+  retries?: number;
+  tags?: string[];
+  environment?: string;
+  description?: string;
+  priority?: number;
+  metadata?: Record<string, unknown>;
+}
 
 @Injectable()
 export class ServiceRegistryService implements ServiceRegistry, OnModuleInit {
@@ -93,27 +111,41 @@ export class ServiceRegistryService implements ServiceRegistry, OnModuleInit {
     }
   }
 
-  private convertServiceMetadataToServiceInfo(metadata: ServiceMetadata): ServiceInfo {
-    if (!metadata.baseUrl) {
-      throw new Error(`Service ${metadata.id} has no baseUrl configured`);
-    }
+  private convertServiceMetadataToServiceInfo(metadata: FlexibleServiceMetadata): ServiceInfo {
+    let host: string;
+    let port: number;
 
-    try {
-      const url = new URL(metadata.baseUrl);
-      return {
-        name: metadata.id,
-        host: url.hostname,
-        port: parseInt(url.port) || (url.protocol === 'https:' ? 443 : 80),
-        health: metadata.healthCheck || '/health',
-        version: metadata.version,
-        tags: metadata.tags || [],
-        routes: [], // Will be populated during route discovery
-      };
-    } catch (error) {
+    // Handle both JSON configuration format and ServiceMetadata interface
+    if (metadata.baseUrl) {
+      // ServiceMetadata interface format
+      try {
+        const url = new URL(metadata.baseUrl);
+        host = url.hostname;
+        port = parseInt(url.port, 10) || (url.protocol === 'https:' ? 443 : 80);
+      } catch (error) {
+        throw new Error(
+          `Invalid baseUrl '${metadata.baseUrl}' for service ${metadata.id ?? metadata.name}: ${(error as Error).message}`,
+        );
+      }
+    } else if (metadata.host && metadata.port) {
+      // JSON configuration format - use destructuring
+      const serviceData = { host: metadata.host, port: metadata.port };
+      ({ host, port } = serviceData);
+    } else {
       throw new Error(
-        `Invalid baseUrl '${metadata.baseUrl}' for service ${metadata.id}: ${(error as Error).message}`,
+        `Service ${metadata.id ?? metadata.name} must have either 'baseUrl' or both 'host' and 'port' configured`,
       );
     }
+
+    return {
+      name: metadata.id ?? metadata.name,
+      host,
+      port,
+      health: metadata.healthCheck ?? metadata.health ?? '/health',
+      version: metadata.version ?? '1.0.0',
+      tags: metadata.tags ?? [],
+      routes: [], // Will be populated during route discovery
+    };
   }
 
   register(service: ServiceInfo): Promise<void> {
@@ -167,9 +199,7 @@ export class ServiceRegistryService implements ServiceRegistry, OnModuleInit {
       });
       return response.status === 200;
     } catch (error) {
-      const typedError = error as Error;
-      const errorMessage = typedError?.message ?? String(error);
-      this.logger.warn(`Health check failed for ${serviceName}: ${errorMessage}`);
+      this.logger.warn(`Health check failed for ${serviceName}: ${(error as Error).message}`);
       return false;
     }
   }
@@ -204,16 +234,99 @@ export class ServiceRegistryService implements ServiceRegistry, OnModuleInit {
     return this.routeMappings.find(mapping => mapping.pattern.test(route)) || null;
   }
 
+  /**
+   * Transform route according to mapping configuration
+   * Handles complex route transformations including stripPrefix and rewrite
+   */
   transformRoute(originalRoute: string, mapping: RouteMapping): string {
-    if (mapping.rewrite) {
-      return originalRoute.replace(mapping.pattern, mapping.rewrite);
+    let transformedRoute = originalRoute;
+
+    // Use transformations object if available (new format)
+    const { transformations } = mapping;
+    const stripPrefix = transformations?.stripPrefix ?? mapping.stripPrefix;
+    const rewrite = transformations?.rewrite ?? mapping.rewrite;
+
+    this.logger.debug('Transform route start', {
+      originalRoute,
+      stripPrefix,
+      rewrite,
+      pattern: mapping.pattern.source,
+    });
+
+    // Handle rewrite transformation first
+    if (rewrite) {
+      // Check if the pattern matches the route
+      const match = originalRoute.match(mapping.pattern);
+      if (match) {
+        // For regex patterns with capture groups, use proper replacement
+        if (mapping.pattern.source.includes('(') && rewrite.includes('$')) {
+          transformedRoute = originalRoute.replace(mapping.pattern, rewrite);
+
+          this.logger.debug('Applied rewrite transformation with capture groups', {
+            originalRoute,
+            transformedRoute,
+            rewrite,
+            capturedGroups: match.slice(1), // Show captured groups for debugging
+          });
+        } else {
+          // Simple rewrite - replace the matched part with the rewrite value
+          transformedRoute = rewrite;
+
+          this.logger.debug('Applied simple rewrite transformation', {
+            originalRoute,
+            transformedRoute,
+            rewrite,
+          });
+        }
+      } else {
+        this.logger.warn('Rewrite requested but pattern did not match', {
+          originalRoute,
+          pattern: mapping.pattern.source,
+          rewrite,
+        });
+        return originalRoute; // Return original if no match
+      }
+
+      return transformedRoute;
     }
 
-    if (mapping.stripPrefix) {
-      // Remove the matched prefix from the route
-      return originalRoute.replace(mapping.pattern, '/');
+    // Handle stripPrefix transformation
+    if (stripPrefix) {
+      // Extract the prefix that matches the pattern
+      const match = originalRoute.match(mapping.pattern);
+      if (match) {
+        // Remove the matched prefix and ensure we start with /
+        const [prefix] = match;
+        transformedRoute = originalRoute.replace(prefix, '');
+
+        // Ensure the result starts with / unless it's empty
+        if (transformedRoute && !transformedRoute.startsWith('/')) {
+          transformedRoute = `/${transformedRoute}`;
+        }
+
+        // If the result is empty or just '/', set it to '/'
+        if (!transformedRoute || transformedRoute === '') {
+          transformedRoute = '/';
+        }
+
+        this.logger.debug('Applied stripPrefix transformation', {
+          originalRoute,
+          transformedRoute,
+          matchedPrefix: prefix,
+        });
+      } else {
+        this.logger.warn('stripPrefix requested but pattern did not match', {
+          originalRoute,
+          pattern: mapping.pattern.source,
+        });
+      }
     }
 
-    return originalRoute;
+    this.logger.debug('Transform route complete', {
+      originalRoute,
+      transformedRoute,
+    });
+
+    return transformedRoute;
   }
 }

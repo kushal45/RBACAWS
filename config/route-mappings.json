@@ -15,9 +15,11 @@
   },
   "services": [
     {
+      "id": "auth-service",
       "name": "auth-service",
       "description": "Authentication and user management service",
-      "host": "${AUTH_SERVICE_HOST:localhost}",
+      "baseUrl": "http://${AUTH_SERVICE_HOST:localhost}:3200",
+      "host": "localhost",
       "port": 3200,
       "version": "1.0.0",
       "health": "/health",
@@ -29,8 +31,10 @@
       }
     },
     {
+      "id": "rbac-core",
       "name": "rbac-core",
       "description": "Role-based access control and authorization service",
+      "baseUrl": "http://${RBAC_CORE_HOST:localhost}:3100",
       "host": "${RBAC_CORE_HOST:localhost}",
       "port": 3100,
       "version": "1.0.0",
@@ -43,8 +47,10 @@
       }
     },
     {
+      "id": "audit-log-service",
       "name": "audit-log-service",
       "description": "Audit logging and compliance service",
+      "baseUrl": "http://${AUDIT_LOG_SERVICE_HOST:localhost}:3300",
       "host": "${AUDIT_LOG_SERVICE_HOST:localhost}",
       "port": 3300,
       "version": "1.0.0",
@@ -59,36 +65,6 @@
   ],
   "routeMappings": [
     {
-      "id": "auth-routes",
-      "description": "Authentication and user management routes",
-      "pattern": "^/api/auth/",
-      "patternType": "regex",
-      "service": "auth-service",
-      "priority": 100,
-      "methods": ["GET", "POST", "PUT", "DELETE"],
-      "transformations": {
-        "stripPrefix": true,
-        "rewrite": "/auth",
-        "addHeaders": {
-          "X-Service-Type": "auth",
-          "X-Route-Version": "v1"
-        }
-      },
-      "security": {
-        "requireAuth": false,
-        "rateLimiting": {
-          "enabled": true,
-          "requests": 100,
-          "window": 60000
-        }
-      },
-      "monitoring": {
-        "tracing": true,
-        "metrics": true,
-        "logging": "info"
-      }
-    },
-    {
       "id": "auth-token-routes",
       "description": "Token management routes with higher rate limiting",
       "pattern": "^/api/auth/(login|register|refresh|logout)",
@@ -97,8 +73,7 @@
       "priority": 110,
       "methods": ["POST"],
       "transformations": {
-        "stripPrefix": true,
-        "rewrite": "/auth"
+        "rewrite": "/$1"
       },
       "security": {
         "requireAuth": false,
@@ -118,7 +93,6 @@
       "priority": 90,
       "methods": ["GET", "POST", "PUT", "DELETE"],
       "transformations": {
-        "stripPrefix": true,
         "rewrite": "/tenants"
       },
       "security": {

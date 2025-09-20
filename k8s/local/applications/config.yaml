@@ -1,0 +1,335 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: rbac-dev
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config
+  namespace: rbac-dev
+  labels:
+    app.kubernetes.io/name: app-config
+    app.kubernetes.io/part-of: rbac
+
+data:
+  NODE_ENV: "development"
+  LOG_LEVEL: "debug"
+  DATABASE_HOST: "postgres"
+  DATABASE_PORT: "5432"
+  DATABASE_USERNAME: "postgres"
+  DATABASE_NAME: "rbac_dev"
+  REDIS_HOST: "redis"
+  REDIS_PORT: "6379"
+  ROUTE_MAPPINGS_PATH: "/config/route-mappings.json"
+  JWT_SECRET: "b7f8c2e1a9d4f6b3e8c1a7d9f2b6c3e4a1d8f7c2b3e6a9d4f1c8b7e2a3d6f9c1"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: app-secrets
+  namespace: rbac-dev
+type: Opaque
+stringData:
+  DATABASE_PASSWORD: "password"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: route-mappings
+  namespace: rbac-dev
+  labels:
+    app.kubernetes.io/name: route-mappings
+    app.kubernetes.io/part-of: rbac
+
+data:
+  route-mappings.json: |
+    {
+      "$schema": "./route-mapping.schema.json",
+      "version": "1.0.0",
+      "metadata": {
+        "name": "RBAC AWS Route Mappings",
+        "description": "Dynamic route configuration for API Gateway service discovery",
+        "lastUpdated": "2025-09-18T00:00:00Z",
+        "environment": "development"
+      },
+      "defaults": {
+        "timeout": 30000,
+        "retries": 3,
+        "healthCheckPath": "/health",
+        "loadBalancing": "round-robin"
+      },
+      "services": [
+        {
+          "id": "auth-service",
+          "name": "auth-service",
+          "description": "Authentication and user management service",
+          "baseUrl": "http://${AUTH_SERVICE_HOST:localhost}:3200",
+          "host": "localhost",
+          "port": 3200,
+          "version": "1.0.0",
+          "health": "/health",
+          "priority": 1,
+          "tags": [
+            "auth",
+            "security",
+            "users"
+          ],
+          "metadata": {
+            "team": "security",
+            "maintainer": "auth-team@company.com"
+          }
+        },
+        {
+          "id": "rbac-core",
+          "name": "rbac-core",
+          "description": "Role-based access control and authorization service",
+          "baseUrl": "http://${RBAC_CORE_HOST:localhost}:3100",
+          "host": "${RBAC_CORE_HOST:localhost}",
+          "port": 3100,
+          "version": "1.0.0",
+          "health": "/health",
+          "priority": 1,
+          "tags": [
+            "rbac",
+            "authorization",
+            "policies"
+          ],
+          "metadata": {
+            "team": "security",
+            "maintainer": "rbac-team@company.com"
+          }
+        },
+        {
+          "id": "audit-log-service",
+          "name": "audit-log-service",
+          "description": "Audit logging and compliance service",
+          "baseUrl": "http://${AUDIT_LOG_SERVICE_HOST:localhost}:3300",
+          "host": "${AUDIT_LOG_SERVICE_HOST:localhost}",
+          "port": 3300,
+          "version": "1.0.0",
+          "health": "/health",
+          "priority": 2,
+          "tags": [
+            "audit",
+            "logging",
+            "compliance"
+          ],
+          "metadata": {
+            "team": "compliance",
+            "maintainer": "audit-team@company.com"
+          }
+        }
+      ],
+      "routeMappings": [
+        {
+          "id": "auth-token-routes",
+          "description": "Token management routes with higher rate limiting",
+          "pattern": "^/api/auth/(login|register|refresh|logout)",
+          "patternType": "regex",
+          "service": "auth-service",
+          "priority": 110,
+          "methods": [
+            "POST"
+          ],
+          "transformations": {
+            "rewrite": "/$1"
+          },
+          "security": {
+            "requireAuth": false,
+            "rateLimiting": {
+              "enabled": true,
+              "requests": 10,
+              "window": 60000
+            }
+          }
+        },
+        {
+          "id": "rbac-tenants",
+          "description": "Tenant management routes",
+          "pattern": "^/api/tenants",
+          "patternType": "regex",
+          "service": "rbac-core",
+          "priority": 90,
+          "methods": [
+            "GET",
+            "POST",
+            "PUT",
+            "DELETE"
+          ],
+          "transformations": {
+            "rewrite": "/tenants"
+          },
+          "security": {
+            "requireAuth": true,
+            "permissions": [
+              "tenant:read",
+              "tenant:write"
+            ]
+          }
+        },
+        {
+          "id": "rbac-users",
+          "description": "User management routes",
+          "pattern": "^/api/users",
+          "patternType": "regex",
+          "service": "rbac-core",
+          "priority": 90,
+          "methods": [
+            "GET",
+            "POST",
+            "PUT",
+            "DELETE"
+          ],
+          "transformations": {
+            "stripPrefix": true,
+            "rewrite": "/users"
+          },
+          "security": {
+            "requireAuth": true,
+            "permissions": [
+              "user:read",
+              "user:write"
+            ]
+          }
+        },
+        {
+          "id": "rbac-roles",
+          "description": "Role management routes",
+          "pattern": "^/api/roles",
+          "patternType": "regex",
+          "service": "rbac-core",
+          "priority": 90,
+          "methods": [
+            "GET",
+            "POST",
+            "PUT",
+            "DELETE"
+          ],
+          "transformations": {
+            "stripPrefix": true,
+            "rewrite": "/roles"
+          },
+          "security": {
+            "requireAuth": true,
+            "permissions": [
+              "role:read",
+              "role:write"
+            ]
+          }
+        },
+        {
+          "id": "rbac-policies",
+          "description": "Policy management routes",
+          "pattern": "^/api/policies",
+          "patternType": "regex",
+          "service": "rbac-core",
+          "priority": 90,
+          "methods": [
+            "GET",
+            "POST",
+            "PUT",
+            "DELETE"
+          ],
+          "transformations": {
+            "stripPrefix": true,
+            "rewrite": "/policies"
+          },
+          "security": {
+            "requireAuth": true,
+            "permissions": [
+              "policy:read",
+              "policy:write"
+            ]
+          }
+        },
+        {
+          "id": "rbac-resources",
+          "description": "Resource management routes",
+          "pattern": "^/api/resources",
+          "patternType": "regex",
+          "service": "rbac-core",
+          "priority": 90,
+          "methods": [
+            "GET",
+            "POST",
+            "PUT",
+            "DELETE"
+          ],
+          "transformations": {
+            "stripPrefix": true,
+            "rewrite": "/resources"
+          },
+          "security": {
+            "requireAuth": true,
+            "permissions": [
+              "resource:read",
+              "resource:write"
+            ]
+          }
+        },
+        {
+          "id": "rbac-authorization",
+          "description": "Authorization check routes",
+          "pattern": "^/api/authorization",
+          "patternType": "regex",
+          "service": "rbac-core",
+          "priority": 95,
+          "methods": [
+            "GET",
+            "POST"
+          ],
+          "transformations": {
+            "stripPrefix": true,
+            "rewrite": "/authorization"
+          },
+          "security": {
+            "requireAuth": true,
+            "rateLimiting": {
+              "enabled": true,
+              "requests": 1000,
+              "window": 60000
+            }
+          }
+        },
+        {
+          "id": "audit-logs",
+          "description": "Audit log routes",
+          "pattern": "^/api/audit",
+          "patternType": "regex",
+          "service": "audit-log-service",
+          "priority": 80,
+          "methods": [
+            "GET",
+            "POST"
+          ],
+          "transformations": {
+            "stripPrefix": true,
+            "rewrite": "/audit-logs"
+          },
+          "security": {
+            "requireAuth": true,
+            "permissions": [
+              "audit:read",
+              "audit:write"
+            ]
+          }
+        }
+      ],
+      "loadBalancing": {
+        "strategy": "round-robin",
+        "healthCheckInterval": 30000,
+        "failoverEnabled": true,
+        "circuitBreaker": {
+          "enabled": true,
+          "failureThreshold": 5,
+          "resetTimeout": 60000
+        }
+      },
+      "monitoring": {
+        "metricsEnabled": true,
+        "tracingEnabled": true,
+        "logLevel": "info",
+        "healthCheckEnabled": true
+      }
+    }

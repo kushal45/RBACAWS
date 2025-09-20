@@ -119,6 +119,21 @@ This project includes comprehensive VS Code debugging configurations for all ser
 - 🐳 Docker container debugging
 - 🎯 Advanced debugging scenarios and troubleshooting
 
+### Docker Dev + Debug
+
+For containerized development with hot reload and VS Code debugging:
+
+- Bring up the stack in dev mode:
+  - docker-compose -f docker-compose.development.yml up --build
+
+- Attach a debugger to each service using these ports:
+  - api-gateway: 9229
+  - auth-service: 9230
+  - rbac-core: 9231
+  - audit-log-service: 9232
+
+Source code is bind-mounted; changes trigger Nest watch-mode reload.
+
 ## Next Steps
 
 - Implement core DTOs, entities, and tenant-aware repository wrappers

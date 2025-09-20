@@ -18,7 +18,7 @@ else
   echo "[info] Skipping ingress.yaml (no ingress-nginx namespace). Install ingress-nginx to use Ingress."
 fi
 
-echo "\n[ok] Applied all manifests. Namespace: rbac-dev"
+printf '\n[ok] Applied all manifests. Namespace: rbac-dev\n'
 echo "- Port-forward API Gateway: kubectl -n rbac-dev port-forward svc/api-gateway 3000:3000"
 echo "- Debug auth-service:        kubectl -n rbac-dev port-forward deploy/auth-service 9229:9229"
 echo "- Debug api-gateway:         kubectl -n rbac-dev port-forward deploy/api-gateway 9230:9229"

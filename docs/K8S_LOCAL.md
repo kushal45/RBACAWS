@@ -56,7 +56,74 @@ Check status:
 kubectl get pods -n rbac-dev -w
 ```
 
-## 4) Access services
+## 4a) Accessing Swagger Docs for Internal Services
+
+For development and API integration, you may want to view the Swagger (OpenAPI) docs for internal services (auth-service, rbac-core, audit-log-service) to understand request/response formats and build gateway integrations.
+
+### Option 1: Port-forward for Local Access
+
+Expose each service's Swagger UI to your local machine:
+
+```sh
+kubectl -n rbac-dev port-forward deploy/auth-service 3200:3200
+kubectl -n rbac-dev port-forward deploy/rbac-core 3100:3100
+kubectl -n rbac-dev port-forward deploy/audit-log-service 3300:3300
+```
+
+Then open in your browser:
+
+- http://localhost:3200/docs (auth-service)
+- http://localhost:3100/docs (rbac-core)
+- http://localhost:3300/docs (audit-log-service)
+
+### Option 2: Expose via Ingress (shared domain)
+
+Add Ingress rules to route `/auth/docs`, `/rbac/docs`, `/audit/docs` to the respective service's `/docs` endpoint. Example:
+
+```yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: rbac-docs
+  namespace: rbac-dev
+spec:
+  rules:
+    - host: rbac.local
+      http:
+        paths:
+          - path: /auth/docs
+            pathType: Prefix
+            backend:
+              service:
+                name: auth-service
+                port:
+                  number: 3200
+          - path: /rbac/docs
+            pathType: Prefix
+            backend:
+              service:
+                name: rbac-core
+                port:
+                  number: 3100
+          - path: /audit/docs
+            pathType: Prefix
+            backend:
+              service:
+                name: audit-log-service
+                port:
+                  number: 3300
+```
+
+This allows you to access all Swagger UIs via a single domain (e.g., http://rbac.local/auth/docs).
+
+### Option 3: Expose via API Gateway (optional)
+
+You can add routes in the API Gateway to proxy `/auth/docs`, `/rbac/docs`, `/audit/docs` to the respective internal service. This makes all docs available via the gateway’s public endpoint.
+
+---
+
+**Summary:**
+For local development, port-forward is simplest. For shared access or cloud parity, use Ingress or API Gateway proxying. This will let you view and interact with all service Swagger docs, making it easy to build and test requests from the API Gateway.
 
 - Port-forward API Gateway:
 

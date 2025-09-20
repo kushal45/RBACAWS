@@ -108,23 +108,24 @@ This document outlines the sprint-based development plan for the Multi-Tenant RB
 
 #### 8.1 Docker Implementation
 
-- [ ] **Base Images**: Multi-stage builds for Node.js services
-- [ ] **Service Dockerfiles**:
-  - [ ] API Gateway Dockerfile
-  - [ ] Auth Service Dockerfile
-  - [ ] RBAC Core Dockerfile (with current minimal implementation)
-  - [ ] Audit Log Service Dockerfile (with current minimal implementation)
-- [ ] **Docker Compose**: Multi-service orchestration
-- [ ] **Build Optimization**: Layer caching, minimal image sizes
+- [x] **Base Images**: Multi-stage builds for Node.js services
+- [x] **Service Dockerfiles**:
+  - [x] API Gateway Dockerfile
+  - [x] Auth Service Dockerfile
+  - [x] RBAC Core Dockerfile (with current minimal implementation)
+  - [x] Audit Log Service Dockerfile (with current minimal implementation)
+- [x] **Docker Compose**: Multi-service orchestration (development workflow with hot-reload and debugging)
+- [x] **Build Optimization**: Layer caching, minimal image sizes
+- [x] **Development Debuggability**: Node inspector, VS Code attach, live reload
 - [ ] **Security**: Non-root users, minimal attack surface
 
 #### 8.2 Container Configuration
 
-- [ ] **Environment Management**: Config injection, secrets handling
+- [x] **Environment Management**: Config injection, secrets handling (via compose and Dockerfiles)
 - [ ] **Health Checks**: Container health endpoints for all services
-- [ ] **Logging**: Container log aggregation
+- [x] **Logging**: Container log aggregation (stdout, Docker logs)
 - [ ] **Networking**: Service mesh preparation
-- [ ] **Persistence**: Volume management for databases
+- [x] **Persistence**: Volume management for databases (compose volumes)
 
 **Deliverables Sprint 8**:
 
@@ -138,7 +139,6 @@ This document outlines the sprint-based development plan for the Multi-Tenant RB
 ├── .dockerignore
 └── scripts/
     ├── build-all.sh
-    └── run-local.sh
 ```
 
 ### Phase 9: Kubernetes Local Deployment (Kind for local development and generic for cloud integration later) ⚙️
@@ -147,7 +147,7 @@ This document outlines the sprint-based development plan for the Multi-Tenant RB
 
 #### 9.1 Kind Cluster Setup
 
-- [ ] **Kind Configuration**: Multi-node cluster for development
+- [x] **Kind Configuration**: Multi-node cluster for development
 - [ ] **Ingress Controller**: NGINX ingress setup
 - [ ] **Load Balancer**: MetalLB for local development
 - [ ] **Storage Classes**: Local persistent volumes
@@ -155,17 +155,17 @@ This document outlines the sprint-based development plan for the Multi-Tenant RB
 
 #### 9.2 Kubernetes Manifests (All Services)
 
-- [ ] **Deployments**: Service deployment configurations
-- [ ] **Services**: ClusterIP, NodePort, LoadBalancer services
-- [ ] **ConfigMaps**: Application configuration management
-- [ ] **Secrets**: Secure credential management
-- [ ] **Ingress**: External traffic routing
+- [x] **Deployments**: Service deployment configurations (api-gateway, auth-service, rbac-core, audit-log-service)
+- [x] **Services**: ClusterIP services for all apps and databases
+- [x] **ConfigMaps**: App config and route-mappings
+- [x] **Secrets**: App secrets (DB password)
+- [x] **Ingress**: Optional Ingress for api-gateway (requires ingress controller)
 - [ ] **NetworkPolicies**: Service-to-service communication rules
 
 #### 9.3 Database Deployment
 
-- [ ] **PostgreSQL**: Stateful deployment with persistence
-- [ ] **Redis**: Cache deployment with clustering
+- [x] **PostgreSQL**: Stateful deployment with persistence (postgres:15-alpine)
+- [x] **Redis**: Cache deployment (single instance for local)
 - [ ] **Backup Strategy**: Database backup automation
 - [ ] **Migration Jobs**: Kubernetes job for schema updates
 
@@ -186,6 +186,8 @@ k8s/
 └── scripts/
     ├── deploy-local.sh
     └── teardown-local.sh
+
+Status: Delivered. See docs/K8S_LOCAL.md for how to run locally with debugging and port-forwarding.
 ```
 
 ### **PRIORITY 2: COMPLETE CORE SERVICES** (Sprints 11-13)

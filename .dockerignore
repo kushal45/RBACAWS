@@ -1,0 +1,29 @@
+node_modules
+npm-debug.log
+.yarn/cache
+.pnpm-store
+
+# Build artifacts
+/dist
+coverage
+
+# Local env and secrets
+.env
+.env.*.local
+
+# IDE/editor
+.vscode
+.idea
+.DS_Store
+
+# Git
+.git
+.gitignore
+
+# Logs
+*.log
+logs/
+
+# Misc
+*.swp
+*.swo

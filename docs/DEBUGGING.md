@@ -1,5 +1,78 @@
 # VS Code Debugging Guide
 
+## 🐳 Kubernetes Debugging from Pods
+
+This section provides a step-by-step guide for attaching the VS Code Node.js debugger to services running inside Kubernetes pods.
+
+### 1. Inspector Startup Verification
+
+- Check pod logs for:
+  - `Debugger listening on ws://0.0.0.0:9229/…`
+- If you see repeated “address already in use” or no “Debugger listening”, the inspector isn’t running correctly.
+
+### 2. Dev Image and Command
+
+- Ensure your deployment uses the dev image and starts with:
+  - `nest start <service> --watch --debug 0.0.0.0:9229`
+- Check your Dockerfile and deployment YAML for this command.
+
+### 3. Port-forwarding
+
+- Run in separate terminals:
+  ```sh
+  kubectl -n rbac-dev port-forward deploy/auth-service 9229:9229
+  kubectl -n rbac-dev port-forward deploy/api-gateway 9230:9229
+  kubectl -n rbac-dev port-forward deploy/rbac-core 9231:9229
+  kubectl -n rbac-dev port-forward deploy/audit-log-service 9232:9229
+  ```
+- You should see: `Forwarding from 127.0.0.1:<localPort> -> 9229`
+
+### 4. VS Code Attach Configuration
+
+- Use the following in `.vscode/launch.json`:
+  ```json
+  {
+    "type": "node",
+    "request": "attach",
+    "name": "Attach: auth-service (k8s)",
+    "address": "localhost",
+    "port": 9229,
+    "localRoot": "${workspaceFolder}",
+    "remoteRoot": "/app",
+    "protocol": "inspector"
+  }
+  ```
+- Select the matching config and start debugging.
+
+### 5. Port Usage Check
+
+- Run `lsof -i :9229` to confirm only the port-forward is using it.
+
+### 6. Inspector Connectivity Test
+
+- Run:
+  ```sh
+  curl http://localhost:9229/json/list
+  ```
+- If you get a JSON response, the inspector is reachable.
+
+### 7. Troubleshooting
+
+- If VS Code fails to attach:
+  - Check for errors like "Cannot connect to runtime process" or "Timeout".
+  - Confirm port-forward is active and matches your VS Code config.
+  - Restart VS Code if needed.
+  - If breakpoints don't hit, check `localRoot`/`remoteRoot` mapping for source maps.
+
+### 8. What to Share for Help
+
+- Pod logs (showing inspector status)
+- Port-forward command and output
+- VS Code launch config
+- Confirmation of dev image usage
+- Any error message from VS Code
+
+This process ensures you can reliably debug Node.js services running in Kubernetes pods from your local VS Code, with full source map support and no port conflicts.
 This guide explains how to debug the RBAC AWS monorepo applications and tests using the comprehensive VS Code debugging configurations provided.
 
 ## 🚀 Available Debug Configurations
@@ -196,3 +269,28 @@ Use watch mode for test-driven development with continuous debugging feedback.
 ---
 
 **Note**: All debugging configurations respect the project's TypeScript setup and automatically handle module resolution and source mapping.
+
+## 🧩 Kubernetes Pod Debugging (Attach from Host)
+
+When running services in the local Kubernetes cluster (namespace `rbac-dev`), each deployment exposes Node inspector on port 9229 inside the pod. To attach from VS Code on your host without conflicts:
+
+1. Ensure the latest manifests are applied (they no longer set `NODE_OPTIONS` and rely on the container command to start the inspector via Nest `--debug`).
+2. For each service you want to debug, run a distinct local port-forward in a separate terminal:
+
+- Auth Service: forward 9229 -> 9229
+- API Gateway: forward 9230 -> 9229
+- RBAC Core: forward 9231 -> 9229
+- Audit Log Service: forward 9232 -> 9229
+
+3. In VS Code, use the matching attach configuration:
+
+- "Attach: auth-service (k8s)" for localhost:9229
+- "Attach: api-gateway (k8s)" for localhost:9230
+- "Attach: rbac-core (k8s)" for localhost:9231
+- "Attach: audit-log-service (k8s)" for localhost:9232
+
+Tips
+
+- If you see "address already in use" inside pod logs, ensure there's no extra `NODE_OPTIONS=--inspect...` in the environment. Our manifests remove these; redeploy if needed.
+- Only one inspector can bind per pod. The Nest `--debug` flag (wired via the Docker dev CMD) is the single source of truth.
+- If source maps don't line up, verify `localRoot` and `remoteRoot` in the attach config map to your workspace and container (`/app`).

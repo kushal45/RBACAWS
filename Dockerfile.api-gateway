@@ -1,0 +1,41 @@
+# syntax=docker/dockerfile:1.7
+
+# ---- Dependencies (full, with dev) ----
+FROM node:20-alpine AS deps
+WORKDIR /app
+RUN apk add --no-cache python3 make g++
+COPY package*.json ./
+RUN npm ci
+
+# ---- Builder (uses full deps) ----
+FROM deps AS builder
+WORKDIR /app
+COPY . .
+# Build only the api-gateway app (libs/ included by context)
+RUN npm run build:api-gateway
+
+# ---- Production deps (pruned) ----
+FROM deps AS prod-deps
+RUN npm prune --omit=dev
+
+# ---- Development (hot reload + debugger) ----
+FROM deps AS dev
+ENV NODE_ENV=development
+WORKDIR /app
+# Copy entire repo for watch mode
+COPY . .
+# Expose app and inspector ports
+EXPOSE 3000 9229
+# Default command can be overridden in compose; run Nest CLI with inspector on all interfaces
+CMD ["npm", "run", "debug:api-gateway"]
+
+# ---- Runtime (production) ----
+FROM node:20-alpine AS runtime
+ENV NODE_ENV=production
+WORKDIR /app
+COPY --from=prod-deps /app/node_modules ./node_modules
+COPY --from=builder /app/dist/apps/api-gateway ./dist
+COPY --from=builder /app/dist/libs ./dist/libs
+COPY config ./config
+EXPOSE 3000
+CMD ["node", "dist/main.js"]

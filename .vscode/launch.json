@@ -30,32 +30,54 @@
       "preLaunchTask": "build-api-gateway"
     },
     {
-      "name": "🔐 Debug Auth Service",
       "type": "node",
-      "request": "launch",
-      "program": "${workspaceFolder}/apps/auth-service/src/main.ts",
-      "args": [],
-      "runtimeArgs": [
-        "-r",
-        "ts-node/register",
-        "-r",
-        "tsconfig-paths/register"
-      ],
-      "cwd": "${workspaceFolder}",
-      "envFile": "${workspaceFolder}/.env",
-      "env": {
-        "NODE_ENV": "development",
-        "AUTH_SERVICE_PORT": "3001"
-      },
-      "sourceMaps": true,
+      "request": "attach",
+      "name": "Attach: auth-service (k8s)",
+      "address": "localhost",
+      "port": 9229,
       "restart": true,
-      "console": "integratedTerminal",
-      "internalConsoleOptions": "neverOpen",
-      "skipFiles": [
-        "<node_internals>/**"
-      ]
+      "sourceMaps": true,
+      "localRoot": "${workspaceFolder}",
+      "remoteRoot": "/app",
+      "resolveSourceMapLocations": ["**", "!**/node_modules/**"]
     },
     {
+      "type": "node",
+      "request": "attach",
+      "name": "Attach: api-gateway (k8s)",
+      "address": "localhost",
+      "port": 9230,
+      "restart": true,
+      "sourceMaps": true,
+      "localRoot": "${workspaceFolder}",
+      "remoteRoot": "/app",
+      "resolveSourceMapLocations": ["**", "!**/node_modules/**"]
+    },
+    {
+      "type": "node",
+      "request": "attach",
+      "name": "Attach: rbac-core (k8s)",
+      "address": "localhost",
+      "port": 9231,
+      "restart": true,
+      "sourceMaps": true,
+      "localRoot": "${workspaceFolder}",
+      "remoteRoot": "/app",
+      "resolveSourceMapLocations": ["**", "!**/node_modules/**"]
+    },
+    {
+      "type": "node",
+      "request": "attach",
+      "name": "Attach: audit-log-service (k8s)",
+      "address": "localhost",
+      "port": 9232,
+      "restart": true,
+      "sourceMaps": true,
+      "localRoot": "${workspaceFolder}",
+      "remoteRoot": "/app",
+      "resolveSourceMapLocations": ["**", "!**/node_modules/**"]
+    },
+{
       "name": "🛡️ Debug RBAC Core",
       "type": "node",
       "request": "launch",
@@ -379,7 +401,7 @@
       "name": "🚀 Debug All Services",
       "configurations": [
         "🚀 Debug API Gateway",
-        "🔐 Debug Auth Service",
+        "Attach: auth-service (k8s)",
         "🛡️ Debug RBAC Core",
         "📋 Debug Audit Log Service"
       ],

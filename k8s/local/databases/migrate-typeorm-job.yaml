@@ -1,0 +1,41 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: migrate-typeorm
+  namespace: rbac-dev
+spec:
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: typeorm-migrate
+          # Use any of the service images that contains node_modules and the repo (dev stage is fine for local)
+          image: rbacaws/api-gateway:local
+          imagePullPolicy: IfNotPresent
+          workingDir: /app
+          command: ["npm", "run", "migration:run"]
+          envFrom:
+            - configMapRef:
+                name: app-config
+            - secretRef:
+                name: app-secrets
+          env:
+            - name: DATABASE_HOST
+              value: "postgres"
+            - name: DATABASE_PORT
+              value: "5432"
+            - name: DATABASE_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: POSTGRES_USER
+            - name: DATABASE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: POSTGRES_PASSWORD
+            - name: DATABASE_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: POSTGRES_DB

@@ -1,0 +1,32 @@
+# syntax=docker/dockerfile:1.7
+
+FROM node:20-alpine AS deps
+WORKDIR /app
+RUN apk add --no-cache python3 make g++
+COPY package*.json ./
+RUN npm ci
+
+FROM deps AS builder
+WORKDIR /app
+COPY . .
+RUN npm run build:rbac-core
+
+FROM deps AS prod-deps
+RUN npm prune --omit=dev
+
+FROM deps AS dev
+ENV NODE_ENV=development
+WORKDIR /app
+COPY . .
+EXPOSE 3100 9229
+CMD ["npm", "run", "debug:rbac-core"]
+
+FROM node:20-alpine AS runtime
+ENV NODE_ENV=production
+WORKDIR /app
+COPY --from=prod-deps /app/node_modules ./node_modules
+COPY --from=builder /app/dist/apps/rbac-core ./dist
+COPY --from=builder /app/dist/libs ./dist/libs
+COPY config ./config
+EXPOSE 3100
+CMD ["node", "dist/main.js"]

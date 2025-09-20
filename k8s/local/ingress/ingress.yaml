@@ -1,0 +1,19 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: rbac-local
+  namespace: rbac-dev
+  annotations:
+    kubernetes.io/ingress.class: nginx
+spec:
+  rules:
+    - host: rbac.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: api-gateway
+                port:
+                  number: 3000
